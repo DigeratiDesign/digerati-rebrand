@@ -3,7 +3,7 @@
  * 
  * @author <cabal@digerati.design>
  */
-export const mouseTrail = () => {
+export const testimonialAvatar = () => {
     const avatars = document.querySelectorAll('.testimonial_photo');
     if (!avatars) {
         return;
