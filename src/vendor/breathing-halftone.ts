@@ -6,7 +6,14 @@ const ROOT_2: number = Math.sqrt(2);
 
 const supports: { canvas: boolean; darker: boolean } = { canvas: false, darker: false };
 
-// Helper function to insert element after another element
+interface ParticleData {
+    channel: string;
+    parent: BreathingHalftone;
+    origin: Vector;
+    naturalSize: number;
+    friction: number;
+}
+
 function insertAfter(elem: HTMLElement, afterElem: HTMLElement): void {
     const parent = afterElem.parentNode;
     const nextElem = afterElem.nextElementSibling;
@@ -17,16 +24,30 @@ function insertAfter(elem: HTMLElement, afterElem: HTMLElement): void {
     }
 }
 
-// Function to create a canvas and context
 function makeCanvasAndCtx() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     return { canvas, ctx };
 }
 
-// Function to initialize BreathingHalftone
-export function BreathingHalftone(img: HTMLImageElement, options: object = {}): void {
-    const defaults = {
+export class BreathingHalftone {
+    private options: any;
+    private canvas: HTMLCanvasElement;
+    private ctx: CanvasRenderingContext2D;
+    private channels: string[];
+    private proxyCanvases: { [key: string]: { canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D } };
+    private img: HTMLImageElement;
+    private cursors: any = {};
+    private particles: Particle[] = [];
+    private channelParticles: { [key: string]: Particle[] } = {};
+    private imgWidth: number;
+    private imgHeight: number;
+    private imgData: Uint8ClampedArray;
+    private canvasPosition: Vector = new Vector();
+    private canvasScale: number;
+    private isActive: boolean = false;
+
+    static defaults = {
         dotSize: 1 / 40,
         dotSizeThreshold: 0.05,
         initVelocity: 0.02,
@@ -40,115 +61,126 @@ export function BreathingHalftone(img: HTMLImageElement, options: object = {}): 
         hoverDiameter: 0.3,
         hoverForce: -0.02,
         activeDiameter: 0.6,
-        activeForce: 0.01,
+        activeForce: 0.01
     };
 
-    const optionsMerged = { ...defaults, ...options };
+    constructor(img: HTMLImageElement, options: object = {}) {
+        this.options = { ...BreathingHalftone.defaults, ...options };
+        this.img = img;
+        if (!supports.canvas) return;
 
-    // Check if canvas is supported
-    if (!supports.canvas) return;
-
-    const { canvas, ctx } = makeCanvasAndCtx();
-
-    if (!canvas || !ctx) {
-        console.error('Canvas creation failed.');
-        return;
+        this.create();
     }
 
-    // Insert canvas after the image
-    canvas.className = img.className;
-    insertAfter(canvas, img);
-    img.style.visibility = 'hidden';
+    private create() {
+        this.isActive = true;
 
-    console.log('Canvas created and inserted:', canvas); // Debugging line
+        const canvasAndCtx = makeCanvasAndCtx();
+        this.canvas = canvasAndCtx.canvas;
+        this.ctx = canvasAndCtx.ctx;
+        this.canvas.className = this.img.className;
+        insertAfter(this.canvas, this.img);
+        this.img.style.visibility = 'hidden';
 
-    const channels = !optionsMerged.isAdditive && !supports.darker ? ['lum'] : optionsMerged.channels;
-    const proxyCanvases: { [key: string]: { canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D } } = {};
-    for (const channel of channels) {
-        proxyCanvases[channel] = makeCanvasAndCtx();
+        this.channels = !this.options.isAdditive && !supports.darker ? ['lum'] : this.options.channels;
+        this.proxyCanvases = {};
+        for (const channel of this.channels) {
+            this.proxyCanvases[channel] = makeCanvasAndCtx();
+        }
+
+        this.loadImage();
+
+        this.getCanvasPosition();
+        this.addCursor('mouse', { pageX: -1e5, pageY: -1e5 });
+
+        this.bindEvents();
     }
 
-    // Load image
-    const loadImage = () => {
-        const src = img.getAttribute('data-src') || img.src;
+    private getCanvasPosition() {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = rect.left + window.pageXOffset;
+        const y = rect.top + window.pageYOffset;
+        this.canvasPosition.set(x, y);
+        this.canvasScale = this.canvas.offsetWidth ? this.canvas.offsetWidth / this.canvas.width : 1;
+    }
+
+    private loadImage() {
+        const src = this.img.getAttribute('data-src') || this.img.src;
         const loadingImg = new Image();
-        loadingImg.onload = () => onImgLoad();
+        loadingImg.onload = () => this.onImgLoad();
         loadingImg.src = src;
 
-        if (img.src !== src) {
-            img.src = src;
+        if (this.img.src !== src) {
+            this.img.src = src;
         }
-    };
+    }
 
-    const onImgLoad = () => {
-        console.log('Image loaded:', img);
-        getImgData();
-        resizeCanvas();
-        getCanvasPosition();
-        img.style.display = 'none';
-        initParticles();
-        animate();
-    };
+    private onImgLoad() {
+        this.getImgData();
+        this.resizeCanvas();
+        this.getCanvasPosition();
+        this.img.style.display = 'none';
+        this.getCanvasPosition();
+        this.initParticles();
+        this.animate();
+    }
 
-    let imgWidth: number, imgHeight: number, imgData: Uint8ClampedArray;
-
-    const getImgData = () => {
+    private getImgData() {
         const canvasAndCtx = makeCanvasAndCtx();
         const imgCanvas = canvasAndCtx.canvas;
         const ctx = canvasAndCtx.ctx;
-        imgWidth = imgCanvas.width = img.naturalWidth;
-        imgHeight = imgCanvas.height = img.naturalHeight;
-        ctx.drawImage(img, 0, 0);
-        imgData = ctx.getImageData(0, 0, imgWidth, imgHeight).data;
-    };
+        this.imgWidth = imgCanvas.width = this.img.naturalWidth;
+        this.imgHeight = imgCanvas.height = this.img.naturalHeight;
+        ctx.drawImage(this.img, 0, 0);
+        this.imgData = ctx.getImageData(0, 0, this.imgWidth, this.imgHeight).data;
+    }
 
-    const resizeCanvas = () => {
-        const w = canvas.width = img.offsetWidth;
-        const h = canvas.height = img.offsetHeight;
-        const diagonal = Math.sqrt(w * w + h * h);
-        const imgScale = w / imgWidth;
-        const gridSize = optionsMerged.dotSize * diagonal;
+    private resizeCanvas() {
+        const w = this.width = this.img.offsetWidth;
+        const h = this.height = this.img.offsetHeight;
+        this.diagonal = Math.sqrt(w * w + h * h);
+        this.imgScale = w / this.imgWidth;
+        this.gridSize = this.options.dotSize * this.diagonal;
 
-        for (const channel in proxyCanvases) {
-            const proxy = proxyCanvases[channel];
+        for (const prop in this.proxyCanvases) {
+            const proxy = this.proxyCanvases[prop];
             proxy.canvas.width = w;
             proxy.canvas.height = h;
         }
+        this.canvas.width = w;
+        this.canvas.height = h;
+    }
 
-        canvas.width = w;
-        canvas.height = h;
-    };
+    private initParticles() {
+        const getParticlesMethod = this.options.isRadial ? 'getRadialGridParticles' : 'getCartesianGridParticles';
 
-    const initParticles = () => {
-        const getParticlesMethod = optionsMerged.isRadial ? 'getRadialGridParticles' : 'getCartesianGridParticles';
+        this.particles = [];
+        this.channelParticles = {};
 
-        let particles: Particle[] = [];
-        let channelParticles: { [key: string]: Particle[] } = {};
+        const angles = { red: 1, green: 2.5, blue: 5, lum: 4 };
 
-        const angles: { [key: string]: number } = { red: 1, green: 2.5, blue: 5, lum: 4 };
-
-        for (const channel of channels) {
+        for (const channel of this.channels) {
             const angle = angles[channel];
-            const channelParticlesArray = getParticlesMethod(channel, angle);
-            channelParticles[channel] = channelParticlesArray;
-            particles = particles.concat(channelParticlesArray);
+            const channelParticlesArray = this[getParticlesMethod](channel, angle);
+            this.channelParticles[channel] = channelParticlesArray;
+            this.particles = this.particles.concat(channelParticlesArray);
         }
-    };
+    }
 
-    const animate = () => {
-        update();
-        render();
-        requestAnimationFrame(animate);
-    };
+    private animate() {
+        this.update();
+        this.render();
+        requestAnimationFrame(this.animate.bind(this));
+    }
 
-    const update = () => {
-        for (const particle of particles) {
-            for (const identifier in cursors) {
-                const cursor = cursors[identifier];
+    private update() {
+        for (const particle of this.particles) {
+            for (const identifier in this.cursors) {
+                const cursor = this.cursors[identifier];
                 const cursorState = cursor.isDown ? 'active' : 'hover';
-                const forceScale = optionsMerged[cursorState + 'Force'];
-                const diameter = optionsMerged[cursorState + 'Diameter'];
-                const radius = diameter / 2 * diagonal;
+                const forceScale = this.options[cursorState + 'Force'];
+                const diameter = this.options[cursorState + 'Diameter'];
+                const radius = diameter / 2 * this.diagonal;
                 const force = Vector.subtract(particle.position, cursor.position);
                 let distanceScale = Math.max(0, radius - force.magnitude) / radius;
                 distanceScale = Math.cos(distanceScale * Math.PI) * -0.5 + 0.5;
@@ -157,43 +189,43 @@ export function BreathingHalftone(img: HTMLImageElement, options: object = {}): 
             }
             particle.update();
         }
-    };
+    }
 
-    const render = () => {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = optionsMerged.isAdditive ? 'black' : 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    private render() {
+        this.ctx.globalCompositeOperation = 'source-over';
+        this.ctx.fillStyle = this.options.isAdditive ? 'black' : 'white';
+        this.ctx.fillRect(0, 0, this.width, this.height);
 
-        ctx.globalCompositeOperation = optionsMerged.isAdditive ? 'lighter' : 'darker';
+        this.ctx.globalCompositeOperation = this.options.isAdditive ? 'lighter' : 'darker';
 
-        for (const channel of channels) {
-            renderGrid(channel);
+        for (const channel of this.channels) {
+            this.renderGrid(channel);
         }
-    };
+    }
 
-    const renderGrid = (channel: string) => {
-        const proxy = proxyCanvases[channel];
-        proxy.ctx.fillStyle = optionsMerged.isAdditive ? 'black' : 'white';
-        proxy.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    private renderGrid(channel: string) {
+        const proxy = this.proxyCanvases[channel];
+        proxy.ctx.fillStyle = this.options.isAdditive ? 'black' : 'white';
+        proxy.ctx.fillRect(0, 0, this.width, this.height);
 
-        const blend = optionsMerged.isAdditive ? 'additive' : 'subtractive';
+        const blend = this.options.isAdditive ? 'additive' : 'subtractive';
         proxy.ctx.fillStyle = channelFillStyles[blend][channel];
 
-        const particles = channelParticles[channel];
+        const particles = this.channelParticles[channel];
         for (const particle of particles) {
             particle.render(proxy.ctx);
         }
 
-        ctx.drawImage(proxy.canvas, 0, 0);
-    };
+        this.ctx.drawImage(proxy.canvas, 0, 0);
+    }
 
-    const getCartesianGridParticles = (channel: string, angle: number) => {
+    private getCartesianGridParticles(channel: string, angle: number) {
         const particles: Particle[] = [];
-        const w = canvas.width;
-        const h = canvas.height;
+        const w = this.width;
+        const h = this.height;
         const diag = Math.max(w, h) * ROOT_2;
 
-        const gridSize = optionsMerged.dotSize * diag;
+        const gridSize = this.gridSize;
         const cols = Math.ceil(diag / gridSize);
         const rows = Math.ceil(diag / gridSize);
 
@@ -210,22 +242,23 @@ export function BreathingHalftone(img: HTMLImageElement, options: object = {}): 
                 x2 += w / 2;
                 y2 += h / 2;
 
-                const particle = initParticle(channel, x2, y2);
+                const particle = this.initParticle(channel, x2, y2);
                 if (particle) {
                     particles.push(particle);
                 }
             }
         }
         return particles;
-    };
+    }
 
-    const getRadialGridParticles = (channel: string, angle: number) => {
+    private getRadialGridParticles(channel: string, angle: number) {
         const particles: Particle[] = [];
-        const w = canvas.width;
-        const h = canvas.height;
+        const w = this.width;
+        const h = this.height;
         const diag = Math.max(w, h) * ROOT_2;
 
-        const gridSize = optionsMerged.dotSize;
+        const gridSize = this.gridSize;
+
         const halfW = w / 2;
         const halfH = h / 2;
         const offset = gridSize;
@@ -240,18 +273,18 @@ export function BreathingHalftone(img: HTMLImageElement, options: object = {}): 
                 const theta = TAU * j / max + angle;
                 const x = centerX + Math.cos(theta) * level * gridSize;
                 const y = centerY + Math.sin(theta) * level * gridSize;
-                const particle = initParticle(channel, x, y);
+                const particle = this.initParticle(channel, x, y);
                 if (particle) {
                     particles.push(particle);
                 }
             }
         }
         return particles;
-    };
+    }
 
-    const initParticle = (channel: string, x: number, y: number) => {
-        const pixelChannelValue = getPixelChannelValue(x, y, channel);
-        if (pixelChannelValue < optionsMerged.dotSizeThreshold) {
+    private initParticle(channel: string, x: number, y: number) {
+        const pixelChannelValue = this.getPixelChannelValue(x, y, channel);
+        if (pixelChannelValue < this.options.dotSizeThreshold) {
             return;
         }
 
@@ -259,16 +292,16 @@ export function BreathingHalftone(img: HTMLImageElement, options: object = {}): 
             channel,
             parent: this,
             origin: new Vector(x, y),
-            naturalSize: gridSize * ROOT_2 / 2,
-            friction: optionsMerged.friction,
+            naturalSize: this.gridSize * ROOT_2 / 2,
+            friction: this.options.friction
         });
-    };
+    }
 
-    const getPixelChannelValue = (x: number, y: number, channel: string) => {
-        x = Math.round(x / imgScale);
-        y = Math.round(y / imgScale);
-        const w = imgWidth;
-        const h = imgHeight;
+    private getPixelChannelValue(x: number, y: number, channel: string) {
+        x = Math.round(x / this.imgScale);
+        y = Math.round(y / this.imgScale);
+        const w = this.imgWidth;
+        const h = this.imgHeight;
 
         if (x < 0 || x > w || y < 0 || y > h) {
             return 0;
@@ -277,28 +310,64 @@ export function BreathingHalftone(img: HTMLImageElement, options: object = {}): 
         const pixelIndex = (x + y * w) * 4;
         let value;
         if (channel === 'lum') {
-            value = getPixelLum(pixelIndex);
+            value = this.getPixelLum(pixelIndex);
         } else {
             const index = pixelIndex + channelOffset[channel];
-            value = imgData[index] / 255;
+            value = this.imgData[index] / 255;
         }
 
         value = value || 0;
-        if (!optionsMerged.isAdditive) {
+        if (!this.options.isAdditive) {
             value = 1 - value;
         }
 
         return value;
-    };
+    }
 
-    const getPixelLum = (pixelIndex: number) => {
-        const r = imgData[pixelIndex + 0] / 255;
-        const g = imgData[pixelIndex + 1] / 255;
-        const b = imgData[pixelIndex + 2] / 255;
+    private getPixelLum(pixelIndex: number) {
+        const r = this.imgData[pixelIndex + 0] / 255;
+        const g = this.imgData[pixelIndex + 1] / 255;
+        const b = this.imgData[pixelIndex + 2] / 255;
         const max = Math.max(r, g, b);
         const min = Math.min(r, g, b);
         return (max + min) / 2;
-    };
+    }
 
-    loadImage();
+    private bindEvents() {
+        this.canvas.addEventListener('mousedown', this, false);
+        this.canvas.addEventListener('touchstart', this, false);
+        window.addEventListener('mousemove', this, false);
+        window.addEventListener('touchmove', this, false);
+        window.addEventListener('touchend', this, false);
+        window.addEventListener('resize', this, false);
+    }
+
+    private unbindEvents() {
+        this.canvas.removeEventListener('mousedown', this, false);
+        this.canvas.removeEventListener('touchstart', this, false);
+        window.removeEventListener('mousemove', this, false);
+        window.removeEventListener('touchmove', this, false);
+        window.removeEventListener('touchend', this, false);
+        window.removeEventListener('resize', this, false);
+    }
+
+    private handleEvent(event: Event) {
+        const method = 'on' + event.type;
+        if (this[method]) {
+            this[method](event);
+        }
+    }
+
+    private onresize() {
+        this.getCanvasPosition();
+    }
+
+    private destroy() {
+        this.isActive = false;
+        this.unbindEvents();
+
+        this.img.style.visibility = '';
+        this.img.style.display = '';
+        this.canvas.parentNode.removeChild(this.canvas);
+    }
 }

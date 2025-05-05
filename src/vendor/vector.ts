@@ -1,8 +1,8 @@
-class Vector {
+export default class Vector {
     x: number;
     y: number;
 
-    constructor(x = 0, y = 0) {
+    constructor(x: number = 0, y: number = 0) {
         this.set(x, y);
     }
 
@@ -46,10 +46,4 @@ class Vector {
     static copy(v: Vector): Vector {
         return new Vector(v.x, v.y);
     }
-
-    clone(): Vector {
-        return new Vector(this.x, this.y);
-    }
 }
-
-export default Vector;

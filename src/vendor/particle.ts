@@ -1,34 +1,15 @@
-import Vector from './vector.js';
+import Vector from './vector'; // Import the Vector class
 
-// ----- constants ----- //
-const TAU = Math.PI * 2;
+const TAU: number = Math.PI * 2;
 
-function getNow(): number {
-    return Date.now();
+function getNow(): Date {
+    return new Date();
 }
 
-interface ParticleOptions {
+export default class Particle {
     channel: string;
     origin: Vector;
-    parent: {
-        options: {
-            initVelocity: number;
-            oscPeriod: number;
-            oscAmplitude: number;
-            isChannelLens: boolean;
-            friction: number;
-            [key: string]: any;
-        };
-        getPixelChannelValue: (x: number, y: number, channel: string) => number;
-    };
-    naturalSize: number;
-    friction: number;
-}
-
-class Particle {
-    channel: string;
-    origin: Vector;
-    parent: ParticleOptions['parent'];
+    parent: any; // This could be of type Halftone (you may need to define it)
     friction: number;
 
     position: Vector;
@@ -41,12 +22,12 @@ class Particle {
     oscSize: number;
     initSize: number;
     initSizeVelocity: number;
+
     oscillationOffset: number;
     oscillationMagnitude: number;
     isVisible: boolean;
-    originChannelValue?: number;
 
-    constructor(properties: ParticleOptions) {
+    constructor(properties: any) {
         this.channel = properties.channel;
         this.origin = properties.origin;
         this.parent = properties.parent;
@@ -61,8 +42,7 @@ class Particle {
         this.sizeVelocity = 0;
         this.oscSize = 0;
         this.initSize = 0;
-        this.initSizeVelocity =
-            (Math.random() * 0.5 + 0.5) * this.parent.options.initVelocity;
+        this.initSizeVelocity = (Math.random() * 0.5 + 0.5) * this.parent.options.initVelocity;
 
         this.oscillationOffset = Math.random() * TAU;
         this.oscillationMagnitude = Math.random();
@@ -74,7 +54,9 @@ class Particle {
     }
 
     update(): void {
-        if (!this.isVisible && Math.random() > 0.03) return;
+        if (!this.isVisible && Math.random() > 0.03) {
+            return;
+        }
         this.isVisible = true;
 
         this.applyOriginAttraction();
@@ -89,10 +71,9 @@ class Particle {
 
     render(ctx: CanvasRenderingContext2D): void {
         let size = this.size * this.oscSize;
-        const initSize = Math.cos(this.initSize * TAU / 2) * -0.5 + 0.5;
+        let initSize = Math.cos(this.initSize * TAU / 2) * -0.5 + 0.5;
         size *= initSize;
         size = Math.max(0, size);
-
         ctx.beginPath();
         ctx.arc(this.position.x, this.position.y, size, 0, TAU);
         ctx.fill();
@@ -105,9 +86,7 @@ class Particle {
             this.initSize = Math.min(1, this.initSize);
         }
 
-        const targetSize =
-            this.naturalSize * this.getChannelValue();
-
+        const targetSize = this.naturalSize * this.getChannelValue();
         const sizeAcceleration = (targetSize - this.size) * 0.1;
         this.sizeVelocity += sizeAcceleration;
         this.sizeVelocity *= 1 - 0.3;
@@ -115,24 +94,25 @@ class Particle {
 
         const now = getNow();
         const opts = this.parent.options;
-        let oscSize = (now / (1000 * opts.oscPeriod)) * TAU;
+        let oscSize = (now.getTime() / (1000 * opts.oscPeriod)) * TAU;
         oscSize = Math.cos(oscSize + this.oscillationOffset);
         oscSize = oscSize * opts.oscAmplitude + 1;
         this.oscSize = oscSize;
     }
 
     getChannelValue(): number {
-        const opts = this.parent.options;
-        const position = opts.isChannelLens ? this.position : this.origin;
-
-        if (opts.isChannelLens) {
-            return this.parent.getPixelChannelValue(position.x, position.y, this.channel);
+        let channelValue;
+        const position = this.parent.options.isChannelLens ? this.position : this.origin;
+        if (this.parent.options.isChannelLens) {
+            channelValue = this.parent.getPixelChannelValue(position.x, position.y, this.channel);
         } else {
-            if (this.originChannelValue === undefined) {
+            if (!this.originChannelValue) {
                 this.originChannelValue = this.parent.getPixelChannelValue(position.x, position.y, this.channel);
             }
-            return this.originChannelValue;
+            channelValue = this.originChannelValue;
         }
+
+        return channelValue;
     }
 
     applyOriginAttraction(): void {
@@ -141,5 +121,3 @@ class Particle {
         this.applyForce(attraction);
     }
 }
-
-export default Particle;
