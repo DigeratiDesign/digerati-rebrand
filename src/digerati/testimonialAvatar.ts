@@ -13,7 +13,7 @@ export const testimonialAvatar = () => {
     avatars.forEach(img => {
         new BreathingHalftone(img, {
             dotSize: 1 / 80,
-            dotSizeThreshold: 0.025,
+            dotSizeThreshold: 0.1,
             initVelocity: 0.02,
             oscPeriod: 3,
             oscAmplitude: 0.2,
