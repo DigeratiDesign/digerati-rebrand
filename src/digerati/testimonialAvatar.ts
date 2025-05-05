@@ -1,3 +1,5 @@
+import { BreathingHalftone } from '../vendor/breathing-halftone';
+
 /**
  * Testimonial Avatar.
  * 
@@ -5,11 +7,14 @@
  */
 export const testimonialAvatar = () => {
     const avatars = document.querySelectorAll('.testimonial_photo');
-    if (!avatars) {
+    if (!avatars.length) {
+        console.log('No avatars found.');
         return;
     }
+
     avatars.forEach(img => {
-        new BreathingHalftone(img, {
+        console.log('Processing image:', img);  // Debugging line
+        new BreathingHalftone(img as HTMLImageElement, {
             dotSize: 1 / 80,
             dotSizeThreshold: 0.025,
             initVelocity: 0.02,
@@ -17,11 +22,7 @@ export const testimonialAvatar = () => {
             oscAmplitude: 0.2,
             isAdditive: false,
             isRadial: false,
-            channels: [
-                'red',
-                'green',
-                'blue'
-            ],
+            channels: ['red', 'green', 'blue'],
             isChannelLens: true,
             friction: 0.06,
             hoverDiameter: 0.3,

@@ -3,12 +3,14 @@ import { currentYear } from "$digerati/currentYear";
 import { mouseTrail } from "$digerati/mouseTrail";
 import { tallyModal } from "$digerati/tallyModal";
 import { testimonialAvatar } from "$digerati/testimonialAvatar";
+import { convertMarkdownToTable } from "$digerati/convertMarkdownToTable";
 
 window.Webflow || [];
 window.Webflow.push(() => {
-  skipToMainContent();
-  currentYear();
   mouseTrail();
-  tallyModal();
+  convertMarkdownToTable();
   testimonialAvatar();
+  skipToMainContent();
+  tallyModal();
+  currentYear();
 });
