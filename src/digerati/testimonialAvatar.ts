@@ -9,7 +9,6 @@ export const testimonialAvatar = () => {
         console.log('No avatars found.');
         return;
     }
-
     avatars.forEach(img => {
         new BreathingHalftone(img, {
             dotSize: 1 / 80,

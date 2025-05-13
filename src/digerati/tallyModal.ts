@@ -1,60 +1,66 @@
 /**
- * Tally Modal.
+ * Tally Modal
  * 
  * @author <cabal@digerati.design>
  */
 export const tallyModal = () => {
-    /* Tally Modal */
-    const openButtons = document.querySelectorAll('[data-open-modal]');
-    const modal = document.getElementById('tally-fullscreen');
-    const closeBtn = document.getElementById('tally-close');
-    const iframe = modal.querySelector('iframe');
+    const openButtons = document.querySelectorAll('[dd-tally="open"]');
+    const modal = document.querySelector('[dd-tally="modal"]');
+    const closeBtn = document.querySelector('[dd-tally="close"]');
+    const iframe = document.querySelector('[dd-tally="iframe"]');
+
     if (!openButtons.length || !modal || !closeBtn || !iframe) {
+        console.warn('[TallyModal] Missing required elements');
         return;
     }
+
     const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
     let previousActiveElement = null;
-    /* Trap Focus */
+
     function trapFocus(e) {
         const focusableEls = modal.querySelectorAll(focusableSelectors);
         const firstEl = focusableEls[0];
         const lastEl = focusableEls[focusableEls.length - 1];
         if (e.key === 'Tab') {
-            if (e.shiftKey) {
-                if (document.activeElement === firstEl) {
-                    e.preventDefault();
-                    lastEl.focus();
-                }
-            } else {
-                if (document.activeElement === lastEl) {
-                    e.preventDefault();
-                    firstEl.focus();
-                }
+            if (e.shiftKey && document.activeElement === firstEl) {
+                e.preventDefault();
+                lastEl.focus();
+            } else if (!e.shiftKey && document.activeElement === lastEl) {
+                e.preventDefault();
+                firstEl.focus();
             }
         }
     }
-    /* Open Modal */
-    function openModal() {
+
+    function openModal(url) {
+        console.log('[TallyModal] Opening modal with URL:', url);
         modal.classList.add('is-active');
         document.body.classList.add('no-scroll');
         modal.setAttribute('aria-hidden', 'false');
+        iframe.setAttribute('src', url);
         previousActiveElement = document.activeElement;
+
         setTimeout(() => {
-            closeBtn.focus(); // start focus on close
+            closeBtn.focus();
         }, 50);
+
         document.addEventListener('keydown', handleKeyDown);
     }
-    /* Close Modal */
+
     function closeModal() {
+        console.log('[TallyModal] Closing modal');
         modal.classList.remove('is-active');
         document.body.classList.remove('no-scroll');
         modal.setAttribute('aria-hidden', 'true');
+        iframe.setAttribute('src', ''); // Clear the iframe on close for better performance
+
         if (previousActiveElement) {
             previousActiveElement.focus();
         }
+
         document.removeEventListener('keydown', handleKeyDown);
     }
-    /* Handle Key Down */
+
     function handleKeyDown(e) {
         if (e.key === 'Escape') {
             closeModal();
@@ -62,11 +68,18 @@ export const tallyModal = () => {
             trapFocus(e);
         }
     }
+
     openButtons.forEach((btn) => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            openModal();
+            const url = btn.getAttribute('dd-tally-url');
+            if (!url) {
+                console.warn('[TallyModal] No dd-tally-url found on clicked button.');
+                return;
+            }
+            openModal(url);
         });
     });
+
     closeBtn.addEventListener('click', closeModal);
 };

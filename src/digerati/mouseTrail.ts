@@ -4,7 +4,7 @@
  * @author <cabal@digerati.design>
  */
 export const mouseTrail = () => {
-    const fxContainer = document.querySelector('[data-fx="mouse-trail"]');
+    const fxContainer = document.querySelector('[dd-fx="mouse-trail"]');
     if (fxContainer) {
         for (let i = 0; i < 750; i++) {
             const fx = document.createElement('i');
