@@ -4,18 +4,14 @@
  * @author <cabal@digerati.design>
  */
 export const tallyModal = () => {
-    const openButtons = document.querySelectorAll('[dd-tally="open"]');
+    const openLinks = document.querySelectorAll('[dd-tally="open"]');
     const modal = document.querySelector('[dd-tally="modal"]');
     const closeBtn = document.querySelector('[dd-tally="close"]');
     const iframe = document.querySelector('[dd-tally="iframe"]');
-
-    if (!openButtons.length || !modal || !closeBtn || !iframe) {
-        console.warn('[TallyModal] Missing required elements');
-        return;
-    }
-
     const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
     let previousActiveElement = null;
+
+    if (!openLinks.length || !modal || !closeBtn || !iframe) return;
 
     function trapFocus(e) {
         const focusableEls = modal.querySelectorAll(focusableSelectors);
@@ -25,7 +21,7 @@ export const tallyModal = () => {
             if (e.shiftKey && document.activeElement === firstEl) {
                 e.preventDefault();
                 lastEl.focus();
-            } else if (!e.shiftKey && document.activeElement === lastEl) {
+            } else if (document.activeElement === lastEl) {
                 e.preventDefault();
                 firstEl.focus();
             }
@@ -34,30 +30,21 @@ export const tallyModal = () => {
 
     function openModal(url) {
         console.log('[TallyModal] Opening modal with URL:', url);
+        iframe.src = url;
         modal.classList.add('is-active');
         document.body.classList.add('no-scroll');
         modal.setAttribute('aria-hidden', 'false');
-        iframe.setAttribute('src', url);
         previousActiveElement = document.activeElement;
-
-        setTimeout(() => {
-            closeBtn.focus();
-        }, 50);
-
+        setTimeout(() => closeBtn.focus(), 50);
         document.addEventListener('keydown', handleKeyDown);
     }
 
     function closeModal() {
-        console.log('[TallyModal] Closing modal');
         modal.classList.remove('is-active');
         document.body.classList.remove('no-scroll');
         modal.setAttribute('aria-hidden', 'true');
-        iframe.setAttribute('src', ''); // Clear the iframe on close for better performance
-
-        if (previousActiveElement) {
-            previousActiveElement.focus();
-        }
-
+        iframe.src = '';
+        if (previousActiveElement) previousActiveElement.focus();
         document.removeEventListener('keydown', handleKeyDown);
     }
 
@@ -69,15 +56,11 @@ export const tallyModal = () => {
         }
     }
 
-    openButtons.forEach((btn) => {
-        btn.addEventListener('click', (e) => {
+    openLinks.forEach(link => {
+        link.addEventListener('click', e => {
             e.preventDefault();
-            const url = btn.getAttribute('dd-tally-url');
-            if (!url) {
-                console.warn('[TallyModal] No dd-tally-url found on clicked button.');
-                return;
-            }
-            openModal(url);
+            const url = link.getAttribute('href');
+            if (url) openModal(url);
         });
     });
 
