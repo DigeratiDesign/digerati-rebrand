@@ -542,7 +542,7 @@
             red: '#00FFFF',
             green: '#FF00FF',
             blue: '#FFFF00',
-            lum: '#000'
+            lum: '#00FF00'
         }
     };
 

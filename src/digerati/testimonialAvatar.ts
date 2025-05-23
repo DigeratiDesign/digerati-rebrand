@@ -19,9 +19,7 @@ export const testimonialAvatar = () => {
             isAdditive: false,
             isRadial: false,
             channels: [
-                'red',
-                'green',
-                'blue'
+                'lum'
             ],
             isChannelLens: true,
             friction: 0.06,
