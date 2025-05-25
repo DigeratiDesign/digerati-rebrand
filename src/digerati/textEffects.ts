@@ -67,10 +67,6 @@ export const highlightText = (): void => {
  * @author <cabal@digerati.design>
  */
 export const unmaskText = () => {
-    console.log("GSAP", typeof gsap);
-    console.log("ScrollTrigger", typeof ScrollTrigger);
-    console.log("SplitText", typeof SplitText);
-    gsap.registerPlugin(SplitText, ScrollTrigger);
     gsap.utils.toArray(".scroll-unmask").forEach((el) => {
         const split = new SplitText(el, {
             type: "lines",
