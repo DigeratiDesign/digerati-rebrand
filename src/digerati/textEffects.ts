@@ -7,13 +7,13 @@
  */
 export const linkHoverState = (): void => {
     const links: NodeListOf<HTMLElement> = document.querySelectorAll<HTMLElement>(
-        ".text-rich-text a, .button"
+        ".text-rich-text a, .button, .button-secondary"
     );
 
     links.forEach((link: HTMLElement): void => {
         const buttonLabel: string = (link.textContent ?? "").trim();
 
-        if (link.classList.contains("button")) {
+        if (link.classList.contains("button") || link.classList.contains("button-secondary")) {
             // Button: two nested spans so the data-replace lives
             // on the outer one (Webflow hover-out label trick)
             link.innerHTML = `<span data-replace="${buttonLabel}"><span>${buttonLabel}</span></span>`;
