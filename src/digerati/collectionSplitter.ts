@@ -16,6 +16,8 @@ export const collectionSplitter = () => {
     const itemsNodeList = target.querySelectorAll('[dd-splitter="list-item"]');
     const totalItems = itemsNodeList.length;
 
+    console.log('Total Items', totalItems);
+
     // If no items found, exit early
     if (totalItems === 0) return;
 
