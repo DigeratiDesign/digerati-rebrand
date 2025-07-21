@@ -6,10 +6,12 @@ import { testimonialAvatar } from "$digerati/testimonialAvatar";
 import { convertMarkdownToTable } from "$digerati/convertMarkdownToTable";
 import { reasonGenerator } from "$digerati/reasonGenerator";
 import { linkHoverState, highlightText, unmaskText } from "$digerati/textEffects";
+import { collectionSplitter } from "$digerati/collectionSplitter";
 
 window.Webflow || [];
 window.Webflow.push(() => {
   mouseTrail();
+  collectionSplitter();
   convertMarkdownToTable();
   testimonialAvatar();
   reasonGenerator();
