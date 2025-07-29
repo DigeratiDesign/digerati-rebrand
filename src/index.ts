@@ -10,18 +10,22 @@ import { collectionSplitter } from "$digerati/collectionSplitter";
 
 window.Webflow ||= [];
 window.Webflow.push(async () => {
-  mouseTrail();
-  skipToMainContent();
   testimonialAvatar();
-  collectionSplitter();
-  convertMarkdownToTable();
-  reasonGenerator();
-  tallyModal();
-  currentYear();
-
-  document.fonts.ready.then(() => {
-    linkHoverState();
-    highlightText();
-    unmaskText();
-  });
+  mouseTrail();
+  linkHoverState();
+  skipToMainContent();
 });
+
+collectionSplitter();
+convertMarkdownToTable();
+reasonGenerator();
+tallyModal();
+currentYear();
+
+/*
+document.fonts.ready.then(() => {
+  linkHoverState();
+  highlightText();
+  unmaskText();
+});
+*/
