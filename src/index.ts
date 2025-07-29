@@ -8,19 +8,23 @@ import { reasonGenerator } from "$digerati/reasonGenerator";
 import { linkHoverState, highlightText, unmaskText } from "$digerati/textEffects";
 import { collectionSplitter } from "$digerati/collectionSplitter";
 
-window.Webflow || [];
-window.Webflow.push(() => {
+window.Webflow ||= [];
+window.Webflow.push(async () => {
   mouseTrail();
   collectionSplitter();
   convertMarkdownToTable();
-  testimonialAvatar();
   reasonGenerator();
   skipToMainContent();
   tallyModal();
   currentYear();
-  document.fonts.ready.then(function () {
+
+  document.fonts.ready.then(() => {
     linkHoverState();
     highlightText();
     unmaskText();
   });
+
+  console.log("[Halftone] UX ready (Webflow ready event)");
+
+  testimonialAvatar();
 });

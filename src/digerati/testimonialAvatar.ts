@@ -1,79 +1,118 @@
-/**
- * Testimonial Avatar.
- * 
- * @author <cabal@digerati.design>
- */
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
+
 export const testimonialAvatar = () => {
-    const avatars = document.querySelectorAll('.testimonial_half-tone');
-    if (!avatars.length) {
-        console.warn('[Halftone] No .testimonial_half-tone elements found.');
-        return;
-    }
+    console.log("[Halftone] testimonialAvatar() started");
 
-    const observer = new IntersectionObserver(
-        (entries, obs) => {
-            entries.forEach(entry => {
-                const img = entry.target;
-                if (!entry.isIntersecting || img.dataset.htDone) return;
+    const avatars = document.querySelectorAll<HTMLImageElement>(".testimonial_half-tone");
+    console.log("[Halftone] Found", avatars.length, "avatars");
 
-                img.dataset.htDone = 'true';
-                obs.unobserve(img);
-
-                const initHalftone = () => {
-                    console.log(`[Halftone] Initialising halftone for`, img);
-
-                    const instance = new BreathingHalftone(img, {
-                        dotSize: 1 / 120,
-                        dotSizeThreshold: 0.025,
-                        initVelocity: 0.02,
-                        oscPeriod: 3,
-                        oscAmplitude: 0.2,
-                        isAdditive: false,
-                        isRadial: false,
-                        channels: ['lum'],
-                        isChannelLens: true,
-                        friction: 0.06,
-                        hoverDiameter: 0.3,
-                        hoverForce: -0.02,
-                        activeDiameter: 0.6,
-                        activeForce: 0.01,
-                    });
-
-                    // Check if canvas was created
-                    if (!instance?.canvas || !(instance.canvas instanceof HTMLCanvasElement)) {
-                        console.warn('[Halftone] Canvas was not created for:', img);
-                        return;
-                    }
-
-                    console.log('[Halftone] Canvas created and inserted:', instance.canvas);
-
-                    // Hide original image completely once canvas is ready
-                    requestAnimationFrame(() => {
-                        img.style.display = 'none';
-                    });
-                };
-
-                // Ensure image is fully loaded before initializing
-                if (img.complete && img.naturalWidth > 0) {
-                    console.log('[Halftone] Image already loaded:', img.src);
-                    initHalftone();
-                } else {
-                    console.log('[Halftone] Waiting for image load:', img.src);
-                    img.addEventListener('load', () => {
-                        console.log('[Halftone] Image finished loading:', img.src);
-                        initHalftone();
-                    }, { once: true });
-                }
+    const startHalftone = () => {
+        console.log("[Halftone] Starting avatar ScrollTrigger setup");
+        avatars.forEach((img) => {
+            ScrollTrigger.create({
+                trigger: img,
+                start: "top 80%",
+                end: "bottom 20%",
+                onEnter: () => initHalftone(img),
+                onLeave: () => destroyHalftone(img),
+                onEnterBack: () => initHalftone(img),
+                onLeaveBack: () => destroyHalftone(img),
             });
-        },
-        {
-            rootMargin: '0px 0px 300px 0px',
-            threshold: 0.5
-        }
-    );
+        });
+        ScrollTrigger.refresh();
+    };
 
-    avatars.forEach(img => {
-        console.log('[Halftone] Observing image:', img.src);
-        observer.observe(img);
+    const fadePreloader = async () => {
+        const preloader = document.querySelector<HTMLElement>('[dd-fx="preloader"]');
+        if (!preloader) {
+            console.log("[Halftone] No preloader found → continue immediately");
+            startHalftone();
+            return;
+        }
+
+        // 1) Wait for full page load
+        if (document.readyState !== "complete") {
+            await new Promise<void>((resolve) => {
+                window.addEventListener("load", () => {
+                    console.log("[Halftone] window.load fired → now fading preloader");
+                    resolve();
+                }, { once: true });
+            });
+        } else {
+            console.log("[Halftone] document already loaded → now fading preloader");
+        }
+
+        // 2) Set up transition
+        preloader.style.transition = "opacity 0.5s ease";
+
+        // 3) Force a reflow so the transition is registered
+        //    before we change opacity:
+        //    reading offsetWidth forces layout
+        //    then in next frame we set opacity to 0
+        //    so you actually see the fade
+        // ---------------------------------------------------
+        // Force reflow:
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        preloader.offsetWidth;
+        // Apply fade on next frame:
+        requestAnimationFrame(() => {
+            preloader.style.opacity = "0";
+        });
+
+        // 4) Once faded, hide and start halftone
+        preloader.addEventListener(
+            "transitionend",
+            () => {
+                preloader.style.display = "none";
+                console.log("[Halftone] Preloader hidden → continue");
+                startHalftone();
+            },
+            { once: true }
+        );
+
+        // 5) Fallback in case transitionend doesn’t fire
+        setTimeout(() => {
+            if (preloader.style.display !== "none") {
+                preloader.style.display = "none";
+                console.log("[Halftone] Preloader fallback hide → continue");
+                startHalftone();
+            }
+        }, 1000);
+    };
+
+    fadePreloader();
+};
+
+const initHalftone = (img: HTMLImageElement) => {
+    console.log("[Halftone] Initializing for", img.alt || "(no alt)");
+
+    const instance = new BreathingHalftone(img, {
+        dotSize: 1 / 70,
+        dotSizeThreshold: 0.025,
+        initVelocity: 0.05,
+        oscPeriod: 3,
+        oscAmplitude: 0.2,
+        isAdditive: false,
+        isRadial: false,
+        channels: ["lum"],
+        isChannelLens: true,
+        friction: 0.06,
+        hoverDiameter: 0.3,
+        hoverForce: -0.02,
+        activeDiameter: 0.6,
+        activeForce: 0.01,
     });
+
+    (img as any)._halftone = instance;
+};
+
+const destroyHalftone = (img: HTMLImageElement) => {
+    if ((img as any)._halftone) {
+        console.log("[Halftone] Destroying for", img.alt || "(no alt)");
+        (img as any)._halftone.destroy();
+        delete (img as any)._halftone;
+    }
 };
