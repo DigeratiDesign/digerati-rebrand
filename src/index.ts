@@ -11,10 +11,11 @@ import { collectionSplitter } from "$digerati/collectionSplitter";
 window.Webflow ||= [];
 window.Webflow.push(async () => {
   mouseTrail();
+  skipToMainContent();
+  testimonialAvatar();
   collectionSplitter();
   convertMarkdownToTable();
   reasonGenerator();
-  skipToMainContent();
   tallyModal();
   currentYear();
 
@@ -23,8 +24,4 @@ window.Webflow.push(async () => {
     highlightText();
     unmaskText();
   });
-
-  console.log("[Halftone] UX ready (Webflow ready event)");
-
-  testimonialAvatar();
 });
