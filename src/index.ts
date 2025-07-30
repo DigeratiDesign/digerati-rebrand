@@ -10,17 +10,17 @@ import { collectionSplitter } from "$digerati/collectionSplitter";
 
 window.Webflow ||= [];
 window.Webflow.push(async () => {
+  currentYear();
+  skipToMainContent();
   testimonialAvatar();
   mouseTrail();
   linkHoverState();
-  skipToMainContent();
 });
 
 collectionSplitter();
 convertMarkdownToTable();
 reasonGenerator();
 tallyModal();
-currentYear();
 
 /*
 document.fonts.ready.then(() => {
