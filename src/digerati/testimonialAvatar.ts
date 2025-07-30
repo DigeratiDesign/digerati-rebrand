@@ -11,8 +11,8 @@ export const testimonialAvatar = () => {
     avatars.forEach((img) => {
         ScrollTrigger.create({
             trigger: img,
-            start: "top 80%",
-            end: "bottom 20%",
+            start: "top bottom",
+            end: "bottom top",
             onEnter: () => initHalftone(img),
             onLeave: () => destroyHalftone(img),
             onEnterBack: () => initHalftone(img),
