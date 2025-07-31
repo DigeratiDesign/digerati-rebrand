@@ -284,7 +284,7 @@
             window[prefix + 'CancelRequestAnimationFrame'];
     }
 
-    // fallback to setTimeout and clearTimeout if either request/cancel is not supported
+    // fallback to setTimeout and Timeout if either request/cancel is not supported
     if (!requestAnimationFrame || !cancelAnimationFrame) {
         requestAnimationFrame = function (callback) {
             var currTime = new Date().getTime();
@@ -297,7 +297,7 @@
         };
 
         cancelAnimationFrame = function (id) {
-            clearTimeout(id);
+            Timeout(id);
         };
     }
 
@@ -521,7 +521,7 @@
         this.ctx.fillStyle = this.options.isAdditive ? 'black' : 'white';
         this.ctx.fillRect(0, 0, this.width, this.height);
         */
-        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.ctx.clearRect(0, 0, this.width, this.height);
 
         // composite grids
         this.ctx.globalCompositeOperation = this.options.isAdditive ? 'lighter' : 'darker';
