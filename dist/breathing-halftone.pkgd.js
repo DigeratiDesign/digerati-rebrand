@@ -484,17 +484,9 @@
         if (!this.isActive) return;
     
         this.update();
-    
-        // Render at least once or when dirty
-        if (this.isDirty || this.isFirstFrame) {
-            this.render();
-            this.isFirstFrame = false;
-        }
-    
+        this.render();
         requestAnimationFrame(this.animate.bind(this));
     };
-
-
 
     Halftone.prototype.update = function () {
         // displace particles with cursors (mouse, touches)
