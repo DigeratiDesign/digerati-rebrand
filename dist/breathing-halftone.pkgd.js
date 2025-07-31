@@ -547,24 +547,26 @@
 
     Halftone.prototype.renderGrid = function (channel) {
         var proxy = this.proxyCanvases[channel];
-        // clear
         proxy.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
-
-
-        // set fill color
+    
         var blend = this.options.isAdditive ? 'additive' : 'subtractive';
         proxy.ctx.fillStyle = channelFillStyles[blend][channel];
-
-        // render particles
+    
         var particles = this.channelParticles[channel];
+        proxy.ctx.beginPath();
         for (var i = 0, len = particles.length; i < len; i++) {
-            var particle = particles[i];
-            particle.render(proxy.ctx);
+            var p = particles[i];
+            var size = Math.max(0, p.size * p.oscSize * (Math.cos(p.initSize * Math.PI) * -0.5 + 0.5));
+            if (size > 0) {
+                proxy.ctx.moveTo(p.position.x + size, p.position.y);
+                proxy.ctx.arc(p.position.x, p.position.y, size, 0, Math.PI * 2);
+            }
         }
-
-        // draw proxy canvas to actual canvas as whole layer
+        proxy.ctx.fill();
+    
         this.ctx.drawImage(proxy.canvas, 0, 0);
     };
+
 
     Halftone.prototype.getCartesianGridParticles = function (channel, angle) {
         var particles = [];
