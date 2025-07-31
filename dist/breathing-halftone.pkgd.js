@@ -245,7 +245,7 @@
     (function () {
         // check canvas support
         var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext && canvas.getContext('2d', { alpha: true });
+        var ctx = canvas.getContext && canvas.getContext('2d');
         supports.canvas = !!ctx;
         if (!supports.canvas) {
             return;
@@ -284,7 +284,7 @@
             window[prefix + 'CancelRequestAnimationFrame'];
     }
 
-    // fallback to setTimeout and Timeout if either request/cancel is not supported
+    // fallback to setTimeout and clearTimeout if either request/cancel is not supported
     if (!requestAnimationFrame || !cancelAnimationFrame) {
         requestAnimationFrame = function (callback) {
             var currTime = new Date().getTime();
@@ -297,7 +297,7 @@
         };
 
         cancelAnimationFrame = function (id) {
-            Timeout(id);
+            clearTimeout(id);
         };
     }
 
@@ -345,7 +345,7 @@
 
     function makeCanvasAndCtx() {
         var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d', { alpha: true });
+        var ctx = canvas.getContext('2d');
         return {
             canvas: canvas,
             ctx: ctx
@@ -517,11 +517,7 @@
     Halftone.prototype.render = function () {
         // clear
         this.ctx.globalCompositeOperation = 'source-over';
-        /*
-        this.ctx.fillStyle = this.options.isAdditive ? 'black' : 'white';
-        this.ctx.fillRect(0, 0, this.width, this.height);
-        */
-        this.ctx.clearRect(0, 0, this.width, this.height);
+	this.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
 
         // composite grids
         this.ctx.globalCompositeOperation = this.options.isAdditive ? 'lighter' : 'darker';
@@ -552,8 +548,8 @@
     Halftone.prototype.renderGrid = function (channel) {
         var proxy = this.proxyCanvases[channel];
         // clear
-        proxy.ctx.fillStyle = this.options.isAdditive ? 'black' : 'white';
-        proxy.ctx.fillRect(0, 0, this.width, this.height);
+        proxy.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
+
 
         // set fill color
         var blend = this.options.isAdditive ? 'additive' : 'subtractive';
