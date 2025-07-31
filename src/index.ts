@@ -26,23 +26,20 @@ window.Webflow.push(async () => {
   initPageBlurTitleCycler({
     interval: 750,
     messages: [
-      "It's not a conspiracy",
-      "Consume",
-      "Obey",
-      "No thought",
-      "Stay asleep",
-      "Watch TV",
-      "Conform",
-      "Work 8 hours",
-      "Sleep 8 hours",
-      "Play 8 hours",
-      "Doubt humanity",
-      "Marry & reproduce",
-      "Submit",
-      "Follow",
-      "Buy",
-      "No imagination",
-      "Honour apathy"
+      "It's not a conspiracy...",
+      "Digerati says: Consume",
+      "Digerati says: Obey",
+      "Digerati says: Don't think",
+      "Digerati says: Stay asleep",
+      "Digerati says: Watch TV",
+      "Digerati says: Conform",
+      "Digerati says: Work 8 hours",
+      "Digerati says: Sleep 8 hours",
+      "Digerati says: Play 8 hours",
+      "Digerati says: Submit",
+      "Digerati says: Follow",
+      "Digerati says: Buy",
+      "Digerati says: Honour apathy"
     ],
   });
 });
