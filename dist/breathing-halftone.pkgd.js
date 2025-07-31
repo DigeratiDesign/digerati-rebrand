@@ -480,15 +480,17 @@
 
     };
 
-    Halftone.prototype.animate = function () {
-        // do not animate if not active
-        if (!this.isActive) {
-            return;
-        }
-        this.update();
-        this.render();
-        requestAnimationFrame(this.animate.bind(this));
-    };
+	Halftone.prototype.animate = function () {
+	    if (!this.isActive) return;
+	
+	    this.update();
+	    if (this.isDirty) {
+	        this.render();
+	    }
+	
+	    requestAnimationFrame(this.animate.bind(this));
+	};
+
 
     Halftone.prototype.update = function () {
         // displace particles with cursors (mouse, touches)
