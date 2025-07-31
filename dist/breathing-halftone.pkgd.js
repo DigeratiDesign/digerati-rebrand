@@ -245,7 +245,7 @@
     (function () {
         // check canvas support
         var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext && canvas.getContext('2d');
+        var ctx = canvas.getContext && canvas.getContext('2d', { alpha: true });
         supports.canvas = !!ctx;
         if (!supports.canvas) {
             return;
@@ -345,7 +345,7 @@
 
     function makeCanvasAndCtx() {
         var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d');
+        var ctx = canvas.getContext('2d', { alpha: true });
         return {
             canvas: canvas,
             ctx: ctx
@@ -517,8 +517,11 @@
     Halftone.prototype.render = function () {
         // clear
         this.ctx.globalCompositeOperation = 'source-over';
+        /*
         this.ctx.fillStyle = this.options.isAdditive ? 'black' : 'white';
         this.ctx.fillRect(0, 0, this.width, this.height);
+        */
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // composite grids
         this.ctx.globalCompositeOperation = this.options.isAdditive ? 'lighter' : 'darker';
