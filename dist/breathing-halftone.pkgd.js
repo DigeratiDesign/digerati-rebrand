@@ -481,54 +481,84 @@
     };
 
     Halftone.prototype.animate = function () {
-        // do not animate if not active
-        if (!this.isActive) {
-            return;
-        }
+        if (!this.isActive) return;
+    
         this.update();
-        this.render();
+    
+        if (this.isDirty) {
+            this.render();
+        }
+    
         requestAnimationFrame(this.animate.bind(this));
     };
 
     Halftone.prototype.update = function () {
-        // displace particles with cursors (mouse, touches)
-
-        for (var i = 0, len = this.particles.length; i < len; i++) {
-            var particle = this.particles[i];
-            // apply forces for each cursor
-            for (var identifier in this.cursors) {
-                var cursor = this.cursors[identifier];
-                var cursorState = cursor.isDown ? 'active' : 'hover';
-                var forceScale = this.options[cursorState + 'Force'];
-                var diameter = this.options[cursorState + 'Diameter'];
-                var radius = diameter / 2 * this.diagonal;
-                var force = Vector.subtract(particle.position, cursor.position);
-                var distanceScale = Math.max(0, radius - force.magnitude) / radius;
-                // easeInOutSine
+        let dirty = false;
+    
+        for (let i = 0, len = this.particles.length; i < len; i++) {
+            const particle = this.particles[i];
+    
+            const oldX = particle.position.x;
+            const oldY = particle.position.y;
+            const oldSize = particle.size;
+    
+            // apply forces
+            for (let identifier in this.cursors) {
+                const cursor = this.cursors[identifier];
+                const cursorState = cursor.isDown ? 'active' : 'hover';
+                const forceScale = this.options[cursorState + 'Force'];
+                const diameter = this.options[cursorState + 'Diameter'];
+                const radius = diameter / 2 * this.diagonal;
+                const force = Halftone.Vector.subtract(particle.position, cursor.position);
+                let distanceScale = Math.max(0, radius - force.magnitude) / radius;
                 distanceScale = Math.cos(distanceScale * Math.PI) * -0.5 + 0.5;
                 force.scale(distanceScale * forceScale);
                 particle.applyForce(force);
             }
-
+    
             particle.update();
+    
+            // check if position or size changed enough to require redraw
+            if (
+                Math.abs(particle.position.x - oldX) > 0.1 ||
+                Math.abs(particle.position.y - oldY) > 0.1 ||
+                Math.abs(particle.size - oldSize) > 0.1
+            ) {
+                dirty = true;
+            }
         }
+    
+        this.isDirty = dirty;
     };
 
-    Halftone.prototype.render = function () {
-        // clear
-        this.ctx.globalCompositeOperation = 'source-over';
-	this.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
 
-        // composite grids
-        this.ctx.globalCompositeOperation = this.options.isAdditive ? 'lighter' : 'darker';
-
-        // render channels
-        for (var i = 0, len = this.channels.length; i < len; i++) {
-            var channel = this.channels[i];
-            this.renderGrid(channel);
+    Halftone.prototype.renderGrid = function (channel) {
+        var proxy = this.proxyCanvases[channel];
+    
+        // clear to transparent instead of white/black
+        proxy.ctx.clearRect(0, 0, this.width, this.height);
+    
+        // set fill color
+        var blend = this.options.isAdditive ? 'additive' : 'subtractive';
+        proxy.ctx.fillStyle = channelFillStyles[blend][channel];
+    
+        // batch all particles into one path
+        var particles = this.channelParticles[channel];
+        proxy.ctx.beginPath();
+        for (var i = 0, len = particles.length; i < len; i++) {
+            var p = particles[i];
+            var size = Math.max(0, p.size * p.oscSize * (Math.cos(p.initSize * Math.PI) * -0.5 + 0.5));
+            if (size > 0) {
+                proxy.ctx.moveTo(p.position.x + size, p.position.y); // moveTo avoids line artifacts
+                proxy.ctx.arc(p.position.x, p.position.y, size, 0, Math.PI * 2);
+            }
         }
-
+        proxy.ctx.fill();
+    
+        // draw proxy canvas to main canvas
+        this.ctx.drawImage(proxy.canvas, 0, 0);
     };
+
 
     var channelFillStyles = {
         additive: {
