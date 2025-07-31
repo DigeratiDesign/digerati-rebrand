@@ -8,19 +8,36 @@ export const testimonialAvatar = () => {
 
     const avatars = document.querySelectorAll<HTMLImageElement>(".testimonial_half-tone");
     console.log("[Halftone] Found", avatars.length, "avatars");
+
+    const initIfNeeded = (img: HTMLImageElement) => {
+        if ((img as any)._halftone) return;
+        initHalftone(img);
+    };
+
+    const destroyIfExists = (img: HTMLImageElement) => {
+        if ((img as any)._halftone) {
+            destroyHalftone(img);
+        }
+    };
+
     avatars.forEach((img) => {
         ScrollTrigger.create({
             trigger: img,
             start: "top bottom",
             end: "bottom top",
-            onEnter: () => initHalftone(img),
-            onLeave: () => destroyHalftone(img),
-            onEnterBack: () => initHalftone(img),
-            onLeaveBack: () => destroyHalftone(img),
+            onToggle: (self) => {
+                if (self.isActive) {
+                    initIfNeeded(img);
+                } else {
+                    destroyIfExists(img);
+                }
+            },
         });
     });
+
     ScrollTrigger.refresh();
 };
+
 
 const initHalftone = (img: HTMLImageElement) => {
     console.log("[Halftone] Initializing for", img.alt || "(no alt)");
