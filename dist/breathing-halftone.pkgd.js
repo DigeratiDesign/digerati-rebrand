@@ -423,6 +423,8 @@
         this.img.style.display = 'none';
         this.getCanvasPosition();
         this.initParticles();
+        this.isDirty = true;     // ensure first frame renders
+        this._firstFrame = true; // flag for initial render
         this.animate();
     };
 
@@ -484,9 +486,15 @@
         if (!this.isActive) return;
     
         this.update();
-        this.render();
+    
+        if (this.isDirty || this._firstFrame) {
+            this.render();
+            this._firstFrame = false;
+        }
+    
         requestAnimationFrame(this.animate.bind(this));
     };
+
 
     Halftone.prototype.update = function () {
         var dirty = false;
