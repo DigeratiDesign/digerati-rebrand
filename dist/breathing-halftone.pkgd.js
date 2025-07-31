@@ -489,11 +489,14 @@
     };
 
     Halftone.prototype.update = function () {
-        // displace particles with cursors (mouse, touches)
-
+        var dirty = false;
+    
         for (var i = 0, len = this.particles.length; i < len; i++) {
             var particle = this.particles[i];
-            // apply forces for each cursor
+            var oldX = particle.position.x;
+            var oldY = particle.position.y;
+            var oldSize = particle.size;
+    
             for (var identifier in this.cursors) {
                 var cursor = this.cursors[identifier];
                 var cursorState = cursor.isDown ? 'active' : 'hover';
@@ -502,15 +505,23 @@
                 var radius = diameter / 2 * this.diagonal;
                 var force = Vector.subtract(particle.position, cursor.position);
                 var distanceScale = Math.max(0, radius - force.magnitude) / radius;
-                // easeInOutSine
                 distanceScale = Math.cos(distanceScale * Math.PI) * -0.5 + 0.5;
                 force.scale(distanceScale * forceScale);
                 particle.applyForce(force);
             }
-
+    
             particle.update();
+    
+            if (Math.abs(particle.position.x - oldX) > 0.1 ||
+                Math.abs(particle.position.y - oldY) > 0.1 ||
+                Math.abs(particle.size - oldSize) > 0.1) {
+                dirty = true;
+            }
         }
+    
+        this.isDirty = dirty;
     };
+
 
     Halftone.prototype.render = function () {
         // clear
