@@ -480,16 +480,20 @@
 
     };
 
-	Halftone.prototype.animate = function () {
-	    if (!this.isActive) return;
-	
-	    this.update();
-	    if (this.isDirty) {
-	        this.render();
-	    }
-	
-	    requestAnimationFrame(this.animate.bind(this));
-	};
+    Halftone.prototype.animate = function () {
+        if (!this.isActive) return;
+    
+        this.update();
+    
+        // Render at least once or when dirty
+        if (this.isDirty || this.isFirstFrame) {
+            this.render();
+            this.isFirstFrame = false;
+        }
+    
+        requestAnimationFrame(this.animate.bind(this));
+    };
+
 
 
     Halftone.prototype.update = function () {
