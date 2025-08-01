@@ -3,7 +3,7 @@
  * 
  * @author <cabal@digerati.design>
  */
-export const tally = (minPreloaderMs: number = 1500) => {
+export const Tally = (minPreloaderMs: number = 1500) => {
   const modal = document.querySelector<HTMLElement>('[dd-tally="modal"]');
   const closeBtn = document.querySelector<HTMLElement>('[dd-tally="close"]');
   const iframe = document.querySelector<HTMLIFrameElement>('[dd-tally="iframe"]');
@@ -18,6 +18,7 @@ export const tally = (minPreloaderMs: number = 1500) => {
   let fadeOutInProgress = false;
   let loadHandled = false;
   let preloaderShownAt = 0;
+  let useDarkPreloaderThisOpen = false;
 
   const N = 11;
   const modes: Record<string, (r: number, c: number) => number> = {
@@ -31,7 +32,6 @@ export const tally = (minPreloaderMs: number = 1500) => {
     random: () => Math.random() * N * N,
   };
   const modeNames = Object.keys(modes);
-
   const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
 
   const buildGrid = (container: HTMLElement, mode: string) => {
@@ -66,7 +66,17 @@ export const tally = (minPreloaderMs: number = 1500) => {
     preloader.style.opacity = '1';
     preloader.style.transition = '';
     preloaderShownAt = performance.now();
+
+    if (useDarkPreloaderThisOpen) {
+      preloader.classList.add('dark-mode');
+    } else {
+      preloader.classList.remove('dark-mode');
+    }
+
     buildGrid(preloader, pickRandomMode());
+
+    // reset so subsequent manual opens default back
+    useDarkPreloaderThisOpen = false;
   };
 
   const hidePreloaderImmediate = () => {
@@ -75,6 +85,7 @@ export const tally = (minPreloaderMs: number = 1500) => {
     preloader.style.opacity = '';
     preloader.style.display = 'none';
     fadeOutInProgress = false;
+    preloader.classList.remove('dark-mode');
     if (overallFallbackTimer) {
       clearTimeout(overallFallbackTimer);
       overallFallbackTimer = null;
@@ -102,6 +113,7 @@ export const tally = (minPreloaderMs: number = 1500) => {
       preloader.style.display = 'none';
       preloader.innerHTML = '';
       fadeOutInProgress = false;
+      preloader.classList.remove('dark-mode');
       if (overallFallbackTimer) {
         clearTimeout(overallFallbackTimer);
         overallFallbackTimer = null;
@@ -246,11 +258,13 @@ export const tally = (minPreloaderMs: number = 1500) => {
   document.body.addEventListener('click', onBodyClick, true);
   closeBtn.addEventListener('click', closeModal);
 
-  // auto-open if ?formId=... present
+  // auto-open if ?formId=... present and use dark variant for that first open
   const params = new URLSearchParams(window.location.search);
   const formId = params.get('formId');
   if (formId) {
     const url = `https://tally.so/r/${encodeURIComponent(formId)}`;
+    console.log('[Tally] formId detected, auto-opening:', formId);
+    useDarkPreloaderThisOpen = true;
     openModal(url);
   }
 
