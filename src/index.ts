@@ -23,7 +23,7 @@ window.Webflow.push(async () => {
     hiddenClass: "navbar-hidden",
     injectCSS: true
   });
-  Tally();
+  tally();
   initPageBlurTitleCycler({
     interval: 750,
     messages: [
