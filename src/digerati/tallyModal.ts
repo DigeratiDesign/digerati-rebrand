@@ -3,66 +3,248 @@
  * 
  * @author <cabal@digerati.design>
  */
-export const tallyModal = () => {
-    const openLinks = document.querySelectorAll('[dd-tally="open"]');
-    const modal = document.querySelector('[dd-tally="modal"]');
-    const closeBtn = document.querySelector('[dd-tally="close"]');
-    const iframe = document.querySelector('[dd-tally="iframe"]');
-    const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    let previousActiveElement = null;
+export const tallyModal = (minPreloaderMs: number = 1500) => {
+  const modal = document.querySelector<HTMLElement>('[dd-tally="modal"]');
+  const closeBtn = document.querySelector<HTMLElement>('[dd-tally="close"]');
+  const iframe = document.querySelector<HTMLIFrameElement>('[dd-tally="iframe"]');
+  const preloader = document.querySelector<HTMLElement>('[dd-tally="preloader"]');
+  if (!modal || !closeBtn || !iframe || !preloader) {
+    console.warn('[TallyModal] Missing required DOM elements; aborting.');
+    return { openModal: (_: string) => {}, closeModal: () => {} };
+  }
 
-    if (!openLinks.length || !modal || !closeBtn || !iframe) return;
+  let previousActiveElement: Element | null = null;
+  let overallFallbackTimer: number | null = null;
+  let fadeOutInProgress = false;
+  let loadHandled = false;
+  let preloaderShownAt = 0;
 
-    function trapFocus(e) {
-        const focusableEls = modal.querySelectorAll(focusableSelectors);
-        const firstEl = focusableEls[0];
-        const lastEl = focusableEls[focusableEls.length - 1];
-        if (e.key === 'Tab') {
-            if (e.shiftKey && document.activeElement === firstEl) {
-                e.preventDefault();
-                lastEl.focus();
-            } else if (document.activeElement === lastEl) {
-                e.preventDefault();
-                firstEl.focus();
-            }
-        }
+  const N = 11;
+  const modes: Record<string, (r: number, c: number) => number> = {
+    topRight: (r, c) => Math.hypot(r, N - 1 - c),
+    topLeft: (r, c) => Math.hypot(r, c),
+    bottomLeft: (r, c) => Math.hypot(r, N - 1 - r, c),
+    bottomRight: (r, c) => Math.hypot(r, N - 1 - r, N - 1 - c),
+    vertical: (r) => r,
+    horizontal: (_, c) => c,
+    spiral: (r, c) => ((r + c) % N) + Math.floor((r + c) / N) * N,
+    random: () => Math.random() * N * N
+  };
+  const modeNames = Object.keys(modes);
+
+  const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
+
+  const buildGrid = (container: HTMLElement, mode: string) => {
+    container.innerHTML = '';
+    container.style.display = '';
+    container.style.opacity = '1';
+    container.style.transition = '';
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const fn = modes[mode];
+        const computed = typeof fn === 'function' ? fn(r, c) : 0;
+        const d = computed.toFixed(3);
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.style.setProperty('--d', d);
+        grid.appendChild(cell);
+      }
     }
+    container.appendChild(grid);
+  };
 
-    function openModal(url) {
-        console.log('[TallyModal] Opening modal with URL:', url);
-        iframe.src = url;
-        modal.classList.add('is-active');
-        document.body.classList.add('no-scroll');
-        modal.setAttribute('aria-hidden', 'false');
-        previousActiveElement = document.activeElement;
-        setTimeout(() => closeBtn.focus(), 50);
-        document.addEventListener('keydown', handleKeyDown);
+  const showPreloader = () => {
+    fadeOutInProgress = false;
+    loadHandled = false;
+    if (overallFallbackTimer) {
+      clearTimeout(overallFallbackTimer);
+      overallFallbackTimer = null;
     }
+    preloader.style.display = '';
+    preloader.style.opacity = '1';
+    preloader.style.transition = '';
+    preloaderShownAt = performance.now();
+    const mode = pickRandomMode();
+    buildGrid(preloader, mode);
+  };
 
-    function closeModal() {
-        modal.classList.remove('is-active');
-        document.body.classList.remove('no-scroll');
-        modal.setAttribute('aria-hidden', 'true');
-        iframe.src = '';
-        if (previousActiveElement) previousActiveElement.focus();
-        document.removeEventListener('keydown', handleKeyDown);
+  const hidePreloaderImmediate = () => {
+    preloader.innerHTML = '';
+    preloader.style.transition = '';
+    preloader.style.opacity = '';
+    preloader.style.display = 'none';
+    fadeOutInProgress = false;
+    if (overallFallbackTimer) {
+      clearTimeout(overallFallbackTimer);
+      overallFallbackTimer = null;
     }
+  };
 
-    function handleKeyDown(e) {
-        if (e.key === 'Escape') {
-            closeModal();
-        } else {
-            trapFocus(e);
-        }
-    }
+  const hidePreloaderWithJSFade = () => {
+    if (fadeOutInProgress) return;
+    fadeOutInProgress = true;
 
-    openLinks.forEach(link => {
-        link.addEventListener('click', e => {
-            e.preventDefault();
-            const url = link.getAttribute('href');
-            if (url) openModal(url);
-        });
+    preloader.style.display = '';
+    preloader.style.opacity = '1';
+    preloader.style.transition = 'opacity .4s ease';
+
+    requestAnimationFrame(() => {
+      preloader.style.opacity = '0';
     });
 
-    closeBtn.addEventListener('click', closeModal);
+    let localFallback: number | null = null;
+    const cleanup = () => {
+      if (localFallback) clearTimeout(localFallback);
+      preloader.style.transition = '';
+      preloader.style.opacity = '';
+      preloader.style.display = 'none';
+      preloader.innerHTML = '';
+      fadeOutInProgress = false;
+      if (overallFallbackTimer) {
+        clearTimeout(overallFallbackTimer);
+        overallFallbackTimer = null;
+      }
+    };
+
+    const onTransitionEnd = (e: TransitionEvent) => {
+      if (e.propertyName === 'opacity') {
+        preloader.removeEventListener('transitionend', onTransitionEnd as any);
+        cleanup();
+      }
+    };
+    preloader.addEventListener('transitionend', onTransitionEnd as any);
+
+    localFallback = window.setTimeout(() => {
+      preloader.removeEventListener('transitionend', onTransitionEnd as any);
+      cleanup();
+    }, 600);
+  };
+
+  const scheduleHideAfterMinDuration = () => {
+    const now = performance.now();
+    const elapsed = now - preloaderShownAt;
+    const remaining = Math.max(0, minPreloaderMs - elapsed);
+    if (remaining === 0) {
+      hidePreloaderWithJSFade();
+    } else {
+      setTimeout(() => {
+        hidePreloaderWithJSFade();
+      }, remaining);
+    }
+  };
+
+  const trapFocus = (e: KeyboardEvent) => {
+    const focusableSelectors =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const focusableEls = Array.from(modal.querySelectorAll<HTMLElement>(focusableSelectors)).filter(
+      (el) => !el.hasAttribute('disabled')
+    );
+    if (!focusableEls.length) return;
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+    if (e.key === 'Tab') {
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      closeModal();
+    } else {
+      trapFocus(e);
+    }
+  };
+
+  const openModal = (url: string) => {
+    showPreloader();
+
+    if (overallFallbackTimer) {
+      clearTimeout(overallFallbackTimer);
+      overallFallbackTimer = null;
+    }
+
+    loadHandled = false;
+
+    const onLoad = () => {
+      if (loadHandled) return;
+      loadHandled = true;
+      scheduleHideAfterMinDuration();
+      iframe.removeEventListener('load', onLoad);
+      iframe.removeEventListener('error', onError);
+      if (overallFallbackTimer) {
+        clearTimeout(overallFallbackTimer);
+        overallFallbackTimer = null;
+      }
+    };
+    const onError = () => {
+      if (loadHandled) return;
+      loadHandled = true;
+      scheduleHideAfterMinDuration();
+      iframe.removeEventListener('load', onLoad);
+      iframe.removeEventListener('error', onError);
+      if (overallFallbackTimer) {
+        clearTimeout(overallFallbackTimer);
+        overallFallbackTimer = null;
+      }
+    };
+
+    iframe.addEventListener('load', onLoad);
+    iframe.addEventListener('error', onError);
+
+    overallFallbackTimer = window.setTimeout(() => {
+      if (!loadHandled) {
+        loadHandled = true;
+        hidePreloaderImmediate();
+      }
+      overallFallbackTimer = null;
+    }, 5000);
+
+    iframe.src = url;
+    modal.classList.add('is-active');
+    document.body.classList.add('no-scroll');
+    modal.setAttribute('aria-hidden', 'false');
+    previousActiveElement = document.activeElement;
+    setTimeout(() => {
+      closeBtn.focus();
+    }, 50);
+    document.addEventListener('keydown', handleKeyDown);
+  };
+
+  const closeModal = () => {
+    modal.classList.remove('is-active');
+    document.body.classList.remove('no-scroll');
+    modal.setAttribute('aria-hidden', 'true');
+    iframe.src = '';
+    if (previousActiveElement && (previousActiveElement as HTMLElement).focus) {
+      (previousActiveElement as HTMLElement).focus();
+    }
+    if (overallFallbackTimer) {
+      clearTimeout(overallFallbackTimer);
+      overallFallbackTimer = null;
+    }
+    hidePreloaderImmediate();
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+
+  const onBodyClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const link = target.closest('[dd-tally="open"]') as HTMLElement | null;
+    if (!link) return;
+    e.preventDefault();
+    const href = (link as HTMLAnchorElement).getAttribute('href') || '';
+    if (href) openModal(href);
+  };
+
+  document.body.addEventListener('click', onBodyClick, true);
+  closeBtn.addEventListener('click', closeModal);
+
+  return { openModal, closeModal };
 };
