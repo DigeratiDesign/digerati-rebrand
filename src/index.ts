@@ -49,7 +49,7 @@ smoothScroll({
   easing: "easeOutCubic"
 });
 
-tallyModal();
+// tallyModal();
 collectionSplitter();
 /*convertMarkdownToTable();
 reasonGenerator();
