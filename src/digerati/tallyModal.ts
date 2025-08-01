@@ -3,18 +3,18 @@
  * 
  * @author <cabal@digerati.design>
  */
-export const tallyModal = (minPreloaderMs: number = 1500) => {
+export const Tally = (minPreloaderMs: number = 1500) => {
   const modal = document.querySelector<HTMLElement>('[dd-tally="modal"]');
   const closeBtn = document.querySelector<HTMLElement>('[dd-tally="close"]');
   const iframe = document.querySelector<HTMLIFrameElement>('[dd-tally="iframe"]');
   const preloader = document.querySelector<HTMLElement>('[dd-tally="preloader"]');
   if (!modal || !closeBtn || !iframe || !preloader) {
-    console.warn('[TallyModal] Missing required DOM elements; aborting.');
+    console.warn('[Tally] Missing required DOM elements; aborting.');
     return { openModal: (_: string) => {}, closeModal: () => {} };
   }
 
   let previousActiveElement: Element | null = null;
-  let overallFallbackTimer: number | null = null;
+  let overallFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   let fadeOutInProgress = false;
   let loadHandled = false;
   let preloaderShownAt = 0;
@@ -23,12 +23,12 @@ export const tallyModal = (minPreloaderMs: number = 1500) => {
   const modes: Record<string, (r: number, c: number) => number> = {
     topRight: (r, c) => Math.hypot(r, N - 1 - c),
     topLeft: (r, c) => Math.hypot(r, c),
-    bottomLeft: (r, c) => Math.hypot(r, N - 1 - r, c),
-    bottomRight: (r, c) => Math.hypot(r, N - 1 - r, N - 1 - c),
+    bottomLeft: (r, c) => Math.hypot(N - 1 - r, c),
+    bottomRight: (r, c) => Math.hypot(N - 1 - r, N - 1 - c),
     vertical: (r) => r,
     horizontal: (_, c) => c,
     spiral: (r, c) => ((r + c) % N) + Math.floor((r + c) / N) * N,
-    random: () => Math.random() * N * N
+    random: () => Math.random() * N * N,
   };
   const modeNames = Object.keys(modes);
 
@@ -66,8 +66,7 @@ export const tallyModal = (minPreloaderMs: number = 1500) => {
     preloader.style.opacity = '1';
     preloader.style.transition = '';
     preloaderShownAt = performance.now();
-    const mode = pickRandomMode();
-    buildGrid(preloader, mode);
+    buildGrid(preloader, pickRandomMode());
   };
 
   const hidePreloaderImmediate = () => {
@@ -94,7 +93,8 @@ export const tallyModal = (minPreloaderMs: number = 1500) => {
       preloader.style.opacity = '0';
     });
 
-    let localFallback: number | null = null;
+    let localFallback: ReturnType<typeof setTimeout> | null = null;
+
     const cleanup = () => {
       if (localFallback) clearTimeout(localFallback);
       preloader.style.transition = '';
@@ -138,9 +138,9 @@ export const tallyModal = (minPreloaderMs: number = 1500) => {
   const trapFocus = (e: KeyboardEvent) => {
     const focusableSelectors =
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    const focusableEls = Array.from(modal.querySelectorAll<HTMLElement>(focusableSelectors)).filter(
-      (el) => !el.hasAttribute('disabled')
-    );
+    const focusableEls = Array.from(
+      modal.querySelectorAll<HTMLElement>(focusableSelectors)
+    ).filter((el) => !el.hasAttribute('disabled'));
     if (!focusableEls.length) return;
     const firstEl = focusableEls[0];
     const lastEl = focusableEls[focusableEls.length - 1];
@@ -199,7 +199,7 @@ export const tallyModal = (minPreloaderMs: number = 1500) => {
     iframe.addEventListener('load', onLoad);
     iframe.addEventListener('error', onError);
 
-    overallFallbackTimer = window.setTimeout(() => {
+    overallFallbackTimer = setTimeout(() => {
       if (!loadHandled) {
         loadHandled = true;
         hidePreloaderImmediate();
@@ -245,6 +245,14 @@ export const tallyModal = (minPreloaderMs: number = 1500) => {
 
   document.body.addEventListener('click', onBodyClick, true);
   closeBtn.addEventListener('click', closeModal);
+
+  // auto-open if ?formId=... present
+  const params = new URLSearchParams(window.location.search);
+  const formId = params.get('formId');
+  if (formId) {
+    const url = `https://tally.so/r/${encodeURIComponent(formId)}`;
+    openModal(url);
+  }
 
   return { openModal, closeModal };
 };
