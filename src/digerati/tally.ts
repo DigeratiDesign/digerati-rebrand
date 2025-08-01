@@ -1,9 +1,9 @@
 /**
- * Tally Modal
+ * Tally
  * 
  * @author <cabal@digerati.design>
  */
-export const Tally = (minPreloaderMs: number = 1500) => {
+export const tally = (minPreloaderMs: number = 1500) => {
   const modal = document.querySelector<HTMLElement>('[dd-tally="modal"]');
   const closeBtn = document.querySelector<HTMLElement>('[dd-tally="close"]');
   const iframe = document.querySelector<HTMLIFrameElement>('[dd-tally="iframe"]');
