@@ -2,7 +2,7 @@ import { skipToMainContent } from "$digerati/skipToMainContent";
 import { currentYear } from "$digerati/currentYear";
 import { mouseTrail } from "$digerati/mouseTrail";
 import { smoothScroll } from "$digerati/smoothScroll";
-import { tallyModal } from "$digerati/tallyModal";
+import { tally } from "$digerati/tally";
 import { testimonialAvatar } from "$digerati/testimonialAvatar";
 import { autoHideHeader } from "$digerati/autoHideHeader";
 import { initPageBlurTitleCycler } from "$digerati/pageBlutTitleCycler";
@@ -23,6 +23,7 @@ window.Webflow.push(async () => {
     hiddenClass: "navbar-hidden",
     injectCSS: true
   });
+  Tally();
   initPageBlurTitleCycler({
     interval: 750,
     messages: [
