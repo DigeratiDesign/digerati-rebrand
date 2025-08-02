@@ -46,8 +46,8 @@ export interface AppEvents {
     "convertMarkdown:error": { blockIndex: number; error: string };
 
     // Current Year
-    "currentYear:applied": { year: string; selector: string };
-    "currentYear:missing": { selector: string };
+    "copyrightYear:applied": { year: string; selector: string };
+    "copyrightYear:missing": { selector: string };
 
     // Page Blur Title Cycler
     "pageBlurTitleCycler:initialized": { messagesCount: number };
