@@ -5,7 +5,7 @@ import { eventBus, initEventDebugLogging } from '$digerati/events';
 import { autoGroup } from '$digerati/utils/logger';
 import * as Core from '$digerati/modules';
 import * as Client from '$client/modules';
-import { blurMessages } from '$digerati/constants/blurMessages';
+import { blurMessages } from '$client/constants/blurMessages';
 
 initEventDebugLogging();
 

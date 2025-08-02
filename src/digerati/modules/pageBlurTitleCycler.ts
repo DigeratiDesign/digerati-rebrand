@@ -14,8 +14,7 @@ export class PageBlurTitleCycler {
   private interval: number;
   private idx: number;
   private timerId: number | null;
-  private boundBlur: () => void;
-  private boundStop: () => void;
+  private boundVisibilityChange: () => void;
 
   constructor(opts: PageBlurTitleCyclerOptions) {
     if (!opts.messages || !opts.messages.length) {
@@ -27,8 +26,7 @@ export class PageBlurTitleCycler {
     this.idx = 0;
     this.timerId = null;
 
-    this.boundBlur = this.handleBlur.bind(this);
-    this.boundStop = this.stop.bind(this);
+    this.boundVisibilityChange = this.handleVisibilityChange.bind(this);
   }
 
   private start() {
@@ -55,32 +53,32 @@ export class PageBlurTitleCycler {
   }
 
   /**
-   * Blur handler that ignores blurs caused by focusing into an iframe on the same page.
+   * Handles document visibilitychange to start/stop cycling on tab blur/focus.
    */
-  private handleBlur() {
-    // defer to allow activeElement to update
-    requestAnimationFrame(() => {
-      const active = document.activeElement;
-      if (active && active.tagName === "IFRAME") {
-        log("Blur ignored because focus moved into an iframe.");
-        eventBus.emit("pageBlurTitleCycler:blurIgnoredIframe", { iframe: (active as HTMLIFrameElement).src || "unknown" });
-        return;
-      }
-      // otherwise, proceed with cycling
+  private handleVisibilityChange() {
+    if (document.hidden) {
+      // only start when the page is actually hidden (tab blurred)
       this.start();
-    });
+    } else {
+      // restore original title when page becomes visible
+      this.stop();
+    }
   }
 
+  /**
+   * Initializes visibility listener for blur/focus handling.
+   */
   init() {
-    window.addEventListener("blur", this.boundBlur);
-    window.addEventListener("focus", this.boundStop);
+    document.addEventListener("visibilitychange", this.boundVisibilityChange);
     log("PageBlurTitleCycler initialized.");
     eventBus.emit("pageBlurTitleCycler:initialized", { messagesCount: this.messages.length });
   }
 
+  /**
+   * Cleans up listeners and restores title.
+   */
   destroy() {
-    window.removeEventListener("blur", this.boundBlur);
-    window.removeEventListener("focus", this.boundStop);
+    document.removeEventListener("visibilitychange", this.boundVisibilityChange);
     this.stop();
     log("PageBlurTitleCycler destroyed.");
     eventBus.emit("pageBlurTitleCycler:destroyed", {});
