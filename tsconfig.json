@@ -4,9 +4,15 @@
     "rootDir": ".",
     "baseUrl": "./",
     "paths": {
+      "$client/*": [
+        "src/client/*"
+      ],
       "$digerati/*": [
         "src/digerati/*"
-      ]
+      ],
+      "$fnord/*": [
+        "src/fnord/*"
+      ],
     },
     "types": [
       "@finsweet/ts-utils"

@@ -484,27 +484,27 @@
 
     Halftone.prototype.animate = function () {
         if (!this.isActive) return;
-    
+
         this.update();
-    
+
         if (this.isDirty || this._firstFrame) {
             this.render();
             this._firstFrame = false;
         }
-    
+
         requestAnimationFrame(this.animate.bind(this));
     };
 
 
     Halftone.prototype.update = function () {
         var dirty = false;
-    
+
         for (var i = 0, len = this.particles.length; i < len; i++) {
             var particle = this.particles[i];
             var oldX = particle.position.x;
             var oldY = particle.position.y;
             var oldSize = particle.size;
-    
+
             for (var identifier in this.cursors) {
                 var cursor = this.cursors[identifier];
                 var cursorState = cursor.isDown ? 'active' : 'hover';
@@ -517,16 +517,16 @@
                 force.scale(distanceScale * forceScale);
                 particle.applyForce(force);
             }
-    
+
             particle.update();
-    
+
             if (Math.abs(particle.position.x - oldX) > 0.1 ||
                 Math.abs(particle.position.y - oldY) > 0.1 ||
                 Math.abs(particle.size - oldSize) > 0.1) {
                 dirty = true;
             }
         }
-    
+
         this.isDirty = dirty;
     };
 
@@ -534,7 +534,7 @@
     Halftone.prototype.render = function () {
         // clear
         this.ctx.globalCompositeOperation = 'source-over';
-	this.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
+        this.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
 
         // composite grids
         this.ctx.globalCompositeOperation = this.options.isAdditive ? 'lighter' : 'darker';
@@ -565,10 +565,10 @@
     Halftone.prototype.renderGrid = function (channel) {
         var proxy = this.proxyCanvases[channel];
         proxy.ctx.clearRect(0, 0, this.width, this.height); // transparent clear
-    
+
         var blend = this.options.isAdditive ? 'additive' : 'subtractive';
         proxy.ctx.fillStyle = channelFillStyles[blend][channel];
-    
+
         var particles = this.channelParticles[channel];
         proxy.ctx.beginPath();
         for (var i = 0, len = particles.length; i < len; i++) {
@@ -580,7 +580,7 @@
             }
         }
         proxy.ctx.fill();
-    
+
         this.ctx.drawImage(proxy.canvas, 0, 0);
     };
 
@@ -727,7 +727,7 @@
 
     Halftone.prototype.bindEvents = function () {
         this.canvas.addEventListener('mousedown', this, false);
-        this.canvas.addEventListener('touchstart', this, false);
+        this.canvas.addEventListener('touchstart', this, { passive: true });
         window.addEventListener('mousemove', this, false);
         window.addEventListener('touchmove', this, false);
         window.addEventListener('touchend', this, false);
@@ -736,7 +736,7 @@
 
     Halftone.prototype.unbindEvents = function () {
         this.canvas.removeEventListener('mousedown', this, false);
-        this.canvas.removeEventListener('touchstart', this, false);
+        this.canvas.removeEventListener('touchstart', this, { passive: true });
         window.removeEventListener('mousemove', this, false);
         window.removeEventListener('touchmove', this, false);
         window.removeEventListener('touchend', this, false);
