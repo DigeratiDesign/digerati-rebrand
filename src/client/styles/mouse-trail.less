@@ -1,0 +1,50 @@
+// src/client/styles/components/_mouse-trail.less
+
+.mouse-trail-container {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    z-index: 0;
+    overflow: hidden;
+
+    i {
+        position: relative;
+        display: block;
+        width: 2.5rem;
+        height: 2.5rem;
+        text-decoration: none;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background: var(--color-scheme-1--accent);
+            /* Uncomment to restore glow:
+      box-shadow:
+        0 0 0.625rem var(--color-scheme-1--accent),
+        0 0 1.25rem var(--color-scheme-1--accent),
+        0 0 2.5rem var(--color-scheme-1--accent),
+        0 0 3.75rem var(--color-scheme-1--accent),
+        0 0 5rem var(--color-scheme-1--accent),
+        0 0 6.25rem var(--color-scheme-1--accent);
+      */
+            border-radius: 50%;
+            transition: 1s;
+            transform: scale(0);
+        }
+
+        &:hover {
+            &::before {
+                transition: 0s;
+                transform: scale(1);
+            }
+        }
+    }
+}

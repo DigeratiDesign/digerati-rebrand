@@ -110,17 +110,12 @@ export const assert = (condition: boolean, ...args: any[]) => {
  * @param moduleName Descriptive name for the group
  * @param callback Function to run inside the group
  */
-export const autoGroup = (moduleName: string, callback: () => void) => {
-    if (DEBUG && console.groupCollapsed) {
-        console.groupCollapsed(`[Digerati] ${moduleName}`);
-    }
+// utils/logger.ts
+export function autoGroup<T>(moduleName: string, callback: () => T): T {
+    console.groupCollapsed(`[${moduleName}]`);
     try {
-        callback();
-    } catch (e) {
-        error(`${moduleName} failed:`, e);
+        return callback();
     } finally {
-        if (DEBUG && console.groupEnd) {
-            console.groupEnd();
-        }
+        console.groupEnd();
     }
-};
+}

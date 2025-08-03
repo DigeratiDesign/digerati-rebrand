@@ -1,0 +1,21 @@
+// src/client/styles/animations/_colour-cycle.less
+
+@keyframes colour-cycle {
+    0% {
+        filter: hue-rotate(0deg);
+    }
+
+    100% {
+        filter: hue-rotate(360deg);
+    }
+}
+
+.colour-cycle,
+.preloader {
+    animation: colour-cycle 5s linear infinite;
+    animation-play-state: paused;
+
+    &.is-active {
+        animation-play-state: running;
+    }
+}

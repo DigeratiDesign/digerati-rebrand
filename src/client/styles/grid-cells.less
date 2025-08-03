@@ -1,0 +1,92 @@
+// src/client/styles/components/_grid.less
+
+:root {
+    --scale: .5;
+    --d0: 45px;
+    --gap0: 2px;
+    --diameter: calc(var(--d0) * var(--scale));
+    --gap: calc(var(--gap0) * var(--scale));
+    --cols: 11;
+
+    --bg: #000;
+    --front: #fff;
+    --accent: #0f0;
+
+    --sep: 12%;
+    --vsep: 4%;
+
+    /* fixed stacking: accent always behind */
+    --disc-back: var(--accent);
+    --disc-front: var(--front);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), var(--diameter));
+    gap: var(--gap);
+    animation: colour 5s linear infinite;
+
+    .cell {
+        width: var(--diameter);
+        height: var(--diameter);
+        position: relative;
+        border-radius: 50%;
+        overflow: hidden;
+        animation:
+            pop 2s cubic-bezier(.19, 1, .22, 1) calc(var(--d) * .1s) both,
+            pulse .8s ease-in-out calc(var(--d) * .1s) infinite alternate;
+
+        &::before,
+        &::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            --hx: 0;
+            --vy: 0;
+            animation: shrink .8s ease-in-out calc(var(--d) * .1s) infinite alternate;
+            transform: translate(var(--hx), var(--vy)) scale(1);
+        }
+
+        &::before {
+            background: var(--disc-back);
+            --hx: calc(-1 * var(--sep));
+            --vy: calc(-1 * var(--vsep));
+        }
+
+        &::after {
+            background: var(--disc-front);
+            --hx: var(--sep);
+            --vy: var(--vsep);
+        }
+    }
+}
+
+// Keyframes
+@keyframes pop {
+    from {
+        transform: scale(0) rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    to {
+        transform: scale(.85);
+    }
+}
+
+@keyframes shrink {
+    to {
+        transform: translate(var(--hx), var(--vy)) scale(.15);
+    }
+}
+
+@keyframes colour {
+    from {
+        filter: hue-rotate(0);
+    }
+
+    to {
+        filter: hue-rotate(360deg);
+    }
+}

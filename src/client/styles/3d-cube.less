@@ -1,0 +1,17 @@
+// src/client/styles/components/_3d-cube-face.less
+
+._3d-cube-face {
+    &::before {
+        content: '';
+        position: absolute;
+        z-index: 0;
+        top: 50%;
+        left: 50%;
+        width: 75%;
+        height: 75%;
+        border-radius: 100%;
+        background-color: var(--color-scheme-1--accent);
+        transform: translate3d(-50%, -50%, -1px);
+        will-change: transform;
+    }
+}

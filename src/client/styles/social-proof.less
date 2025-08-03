@@ -1,0 +1,34 @@
+// src/client/styles/components/_social-proof.less
+
+// Fade direction utilities
+.fade-ltr {
+    --fade-dir: to right;
+}
+
+.fade-rtl {
+    --fade-dir: to left;
+}
+
+// Logo marquee animation
+.social-proof_wrapper {
+    .social-proof_logos {
+        animation: logo-marquee-scroll 25s linear infinite;
+    }
+
+    &:hover {
+        .social-proof_logos {
+            animation-play-state: paused;
+        }
+    }
+}
+
+// Keyframes
+@keyframes logo-marquee-scroll {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-100%);
+    }
+}

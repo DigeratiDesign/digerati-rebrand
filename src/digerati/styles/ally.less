@@ -1,0 +1,43 @@
+// src/client/styles/utilities/_accessibility.less
+
+// Focus-visible (commented out by default; uncomment to enable)
+// :focus-visible {
+//   outline: 2px dashed var(--color-scheme-1--text);
+//   outline-offset: 0.5rem;
+//   transition: outline 0.2s ease;
+// }
+
+// Reduced‐motion fallback via media query
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        scroll-behavior: auto; // Disable smooth scrolling
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+// JS‐driven reduced‐motion toggle
+html.reduce-motion {
+    scroll-behavior: auto;
+
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    // Specific override for the mouse‐trail hover effect
+    .mouse-trail-container {
+        i:hover {
+            &::before {
+                transform: none; // suppress the scale effect when reduced motion is active
+            }
+        }
+    }
+}

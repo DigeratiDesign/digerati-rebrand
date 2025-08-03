@@ -1,92 +1,120 @@
+#!/usr/bin/env node
+
 import * as esbuild from 'esbuild';
+import less from 'less';
+import { promises as fs } from 'fs';
 import { readdirSync } from 'fs';
 import { join, sep } from 'path';
 
-// Config output
-const BUILD_DIRECTORY = 'dist';
+// Inline LESS plugin for esbuild
+const inlineLessPlugin = {
+  name: 'inline-less',
+  setup(build) {
+    build.onLoad({ filter: /\.less$/ }, async (args) => {
+      console.log("Compiling LESS file:", args.path);
+      const source = await fs.readFile(args.path, 'utf8');
+      try {
+        const { css } = await less.render(source, {
+          filename: args.path,
+          javascriptEnabled: true,
+          compress: true,
+          paths: ['src/digerati/styles', 'src/client/styles']
+        });
+        return { contents: css, loader: 'css' };
+      } catch (error) {
+        console.error(`LESS Compilation error in file: ${args.path}`, error);
+        throw error;
+      }
+    });
+  }
+};
+
+// Config
+const BUILD_DIR = 'dist';
 const PRODUCTION = process.env.NODE_ENV === 'production';
+const ENTRY_POINTS = [
+  'src/index.ts',
+  'src/main.less'
+];
 
-// Config entrypoint files
-const ENTRY_POINTS = ['src/index.ts'];
-
-// Config dev serving
 const LIVE_RELOAD = !PRODUCTION;
 const SERVE_PORT = 3000;
 const SERVE_ORIGIN = `http://localhost:${SERVE_PORT}`;
 
-// Create context
-const context = await esbuild.context({
+// Delete old webflow-html-embed.css in dev
+if (!PRODUCTION) {
+  try {
+    await fs.unlink(`${BUILD_DIR}/webflow-html-embed.css`);
+    console.log('🗑 Removed old webflow-html-embed.css (dev mode)');
+  } catch {
+    // ignore if not found
+  }
+}
+
+// Create esbuild context
+const ctx = await esbuild.context({
   bundle: true,
   entryPoints: ENTRY_POINTS,
-  outdir: BUILD_DIRECTORY,
+  outdir: BUILD_DIR,
+  entryNames: '[name]',
+  assetNames: 'assets/[name]',
+  loader: { '.css': 'css' },
   minify: PRODUCTION,
+  minifyWhitespace: PRODUCTION,
+  minifySyntax: PRODUCTION,
   sourcemap: !PRODUCTION,
   target: PRODUCTION ? 'es2020' : 'esnext',
   inject: LIVE_RELOAD ? ['./bin/live-reload.js'] : undefined,
-  define: {
-    SERVE_ORIGIN: JSON.stringify(SERVE_ORIGIN),
-  },
+  define: { SERVE_ORIGIN: JSON.stringify(SERVE_ORIGIN) },
+  plugins: [inlineLessPlugin]
 });
 
-// Build files in prod
+// Production build logic
 if (PRODUCTION) {
-  await context.rebuild();
-  context.dispose();
+  await ctx.rebuild();
+
+  // Manually compile src/main.less for Webflow embed
+  const lessSource = await fs.readFile('src/main.less', 'utf8');
+  const { css } = await less.render(lessSource, {
+    filename: 'src/main.less',
+    javascriptEnabled: true,
+    compress: true,
+    paths: ['src/digerati/styles', 'src/client/styles']
+  });
+
+  await fs.mkdir(BUILD_DIR, { recursive: true });
+
+  const destCss = `${BUILD_DIR}/webflow-html-embed.css`;
+  await fs.writeFile(destCss, css, 'utf8');
+  console.log(`✅ Webflow embed CSS written to ${destCss}`);
+
+  ctx.dispose();
+  process.exit(0);
 }
 
-// Watch and serve files in dev
-else {
-  await context.watch();
-  await context
-    .serve({
-      servedir: BUILD_DIRECTORY,
-      port: SERVE_PORT,
-    })
-    .then(logServedFiles);
-}
+// Development build logic: Watch and serve with live reload
+await ctx.watch();
+await ctx.serve({ servedir: BUILD_DIR, port: SERVE_PORT }).then(logServedFiles);
 
-/**
- * Logs information about the files that are being served during local development.
- */
+// Helper: log served files
 function logServedFiles() {
-  /**
-   * Recursively gets all files in a directory.
-   * @param {string} dirPath
-   * @returns {string[]} An array of file paths.
-   */
-  const getFiles = (dirPath) => {
-    const files = readdirSync(dirPath, { withFileTypes: true }).map((dirent) => {
-      const path = join(dirPath, dirent.name);
-      return dirent.isDirectory() ? getFiles(path) : path;
-    });
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true })
+      .flatMap((d) => d.isDirectory() ? walk(join(dir, d.name)) : [join(dir, d.name)]);
 
-    return files.flat();
-  };
+  const files = walk(BUILD_DIR).filter((f) => !f.endsWith('.map'));
 
-  const files = getFiles(BUILD_DIRECTORY);
+  const filtered = files.filter(file => !(file.includes('client' + sep + 'styles')));
 
-  const filesInfo = files
-    .map((file) => {
-      if (file.endsWith('.map')) return;
+  const info = filtered.map((file) => {
+    const parts = file.split(sep);
+    parts[0] = SERVE_ORIGIN;
+    const url = parts.join('/');
+    const tag = file.endsWith('.css')
+      ? `<link rel="stylesheet" href="${url}" />`
+      : `<script defer src="${url}"></script>`;
+    return { Location: url, Snippet: tag };
+  });
 
-      // Normalize path and create file location
-      const paths = file.split(sep);
-      paths[0] = SERVE_ORIGIN;
-
-      const location = paths.join('/');
-
-      // Create import suggestion
-      const tag = location.endsWith('.css')
-        ? `<link href="${location}" rel="stylesheet" type="text/css"/>`
-        : `<script defer src="${location}"></script>`;
-
-      return {
-        'File Location': location,
-        'Import Suggestion': tag,
-      };
-    })
-    .filter(Boolean);
-
-  // eslint-disable-next-line no-console
-  console.table(filesInfo);
+  console.table(info);
 }

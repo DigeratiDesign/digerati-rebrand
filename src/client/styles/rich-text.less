@@ -1,0 +1,41 @@
+// src/client/styles/components/_text-rich-text.less
+
+.text-rich-text {
+
+    // Inline Button Text Flip Hover State
+    a {
+        position: relative;
+        display: inline-block;
+        overflow: hidden;
+        color: var(--color-scheme-1--text);
+        vertical-align: top;
+        text-decoration: none;
+        pointer-events: auto;
+        border-bottom: 1px dotted var(--color-scheme-1--text);
+    }
+
+    // Bullet Highlight
+    &.is-highlight-bullet {
+        ul {
+            padding-left: 0;
+
+            li {
+                position: relative;
+                list-style: none;
+                margin-left: 1.75rem;
+
+                &::before {
+                    content: '';
+                    position: absolute;
+                    top: 0.5rem;
+                    left: -1.75rem;
+                    display: block;
+                    width: 0.375rem;
+                    height: 0.375rem;
+                    border-radius: 100%;
+                    background-color: lime;
+                }
+            }
+        }
+    }
+}
