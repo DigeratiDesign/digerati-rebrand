@@ -1,11 +1,12 @@
 // src/digerati/modules/collectionSplitter.ts
 
 /**
- * Collection Splitter.
- * 
- * Splits a list of items in half (or custom split) by cloning the wrapper
- * and slicing the items.
- * 
+ * Collection Splitter (Move-based).
+ *
+ * Instead of cloning, this version moves the original elements,
+ * wrapping the first half in one container and the second half in another.
+ * This preserves all existing event bindings and IX2 interactions.
+ *
  * @author <cabal@digerati.design>
  */
 import { autoGroup, log, warn } from "$digerati/utils/logger";
@@ -18,19 +19,19 @@ export interface CollectionSplitterOptions {
 }
 
 export const collectionSplitter = (opts: CollectionSplitterOptions = {}) => {
-    autoGroup("Collection Splitter", () => {
+    autoGroup("Collection Splitter (move-based)", () => {
         const wrapperSelector = opts.wrapperSelector ?? '[dd-splitter="list-wrapper"]';
         const itemSelector = opts.itemSelector ?? '[dd-splitter="list-item"]';
 
-        const target = document.querySelector<HTMLElement>(wrapperSelector);
-        if (!target) {
+        const originalWrapper = document.querySelector<HTMLElement>(wrapperSelector);
+        if (!originalWrapper) {
             warn(`Target not found for selector "${wrapperSelector}".`);
             eventBus.emit("collectionSplitter:missingTarget", { selector: wrapperSelector });
             return;
         }
 
-        const itemsNodeList = target.querySelectorAll<HTMLElement>(itemSelector);
-        const totalItems = itemsNodeList.length;
+        const items = Array.from(originalWrapper.querySelectorAll<HTMLElement>(itemSelector));
+        const totalItems = items.length;
         log("Total items found:", totalItems);
 
         if (totalItems === 0) {
@@ -39,29 +40,45 @@ export const collectionSplitter = (opts: CollectionSplitterOptions = {}) => {
             return;
         }
 
-        const perSplit = opts.splitAt ? opts.splitAt(totalItems) : Math.ceil(totalItems / 2);
-        log(`Splitting ${totalItems} items at ${perSplit}.`);
+        const splitIndex = opts.splitAt ? opts.splitAt(totalItems) : Math.ceil(totalItems / 2);
+        log(`Splitting ${totalItems} items at index ${splitIndex}.`);
 
-        // Clone wrapper and insert after original
-        const duplicate = target.cloneNode(true) as HTMLElement;
-        if (target.parentNode) {
-            target.parentNode.insertBefore(duplicate, target.nextSibling);
-        } else {
-            warn("Cannot insert duplicate: original has no parent.");
+        const parent = originalWrapper.parentNode;
+        if (!parent) {
+            warn("Original wrapper has no parent.");
+            return;
         }
 
-        // Operate on items
-        const originalItems = Array.from(target.querySelectorAll<HTMLElement>(itemSelector));
-        const duplicateItems = Array.from(duplicate.querySelectorAll<HTMLElement>(itemSelector));
+        // Create two new wrapper containers matching the original
+        const containerA = document.createElement(originalWrapper.tagName);
+        const containerB = document.createElement(originalWrapper.tagName);
 
-        originalItems.slice(perSplit).forEach((item) => item.remove());
-        duplicateItems.slice(0, perSplit).forEach((item) => item.remove());
+        // Copy attributes (classes, data-attrs) from the original wrapper
+        Array.from(originalWrapper.attributes).forEach(attr => {
+            containerA.setAttribute(attr.name, attr.value);
+            containerB.setAttribute(attr.name, attr.value);
+        });
 
+        // Move items into the new containers
+        items.forEach((item, idx) => {
+            if (idx < splitIndex) {
+                containerA.appendChild(item);
+            } else {
+                containerB.appendChild(item);
+            }
+        });
+
+        // Replace original wrapper with the two new containers
+        parent.insertBefore(containerA, originalWrapper);
+        parent.insertBefore(containerB, originalWrapper);
+        parent.removeChild(originalWrapper);
+
+        log("Collection split by moving elements, preserving IX2.");
         eventBus.emit("collectionSplitter:performed", {
             total: totalItems,
-            perSplit,
-            firstCount: perSplit,
-            secondCount: totalItems - perSplit
+            splitIndex,
+            firstCount: splitIndex,
+            secondCount: totalItems - splitIndex
         });
     });
 };

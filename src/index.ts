@@ -14,6 +14,7 @@ const PHASES = {
     readyFn: domReady,
     event: 'core:domReady',
     tasks: [
+      Core.collectionSplitter,
       Core.copyrightYear,
       Client.tally,
       Client.reasonGenerator,
@@ -23,6 +24,7 @@ const PHASES = {
     readyFn: webflowReady,
     event: 'core:webflowReady',
     tasks: [
+      Client.initAutoHideAccordionItem,
       Core.skipToMainContent,
       Client.testimonialAvatar,
       Client.mouseTrail,
@@ -36,11 +38,9 @@ const PHASES = {
         hiddenClass: 'navbar-hidden',
         injectCSS: true
       }),
-      () => Core.initPageBlurTitleCycler({
-        interval: 750,
+      () => Core.initPageBlurTitle({
         messages: blurMessages
       }),
-      Core.collectionSplitter,
       () => Core.smoothScroll({
         duration: 800,
         easing: 'easeOutCubic'

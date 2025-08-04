@@ -1,5 +1,6 @@
 // src/client/modules/index.ts
 
+export { initAutoHideAccordionItem } from './autoHideAccordionItem';
 export { initColourCycle } from './colourCycle';
 export { mouseTrail } from './mouseTrail';
 export { tally } from './tally';

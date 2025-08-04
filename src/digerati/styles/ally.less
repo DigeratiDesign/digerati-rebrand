@@ -1,4 +1,4 @@
-// src/client/styles/utilities/_accessibility.less
+// src/digerati/styles/utilities/_accessibility.less
 
 // Focus-visible (commented out by default; uncomment to enable)
 // :focus-visible {
@@ -30,14 +30,5 @@ html.reduce-motion {
     *::after {
         animation: none !important;
         transition: none !important;
-    }
-
-    // Specific override for the mouse‐trail hover effect
-    .mouse-trail-container {
-        i:hover {
-            &::before {
-                transform: none; // suppress the scale effect when reduced motion is active
-            }
-        }
     }
 }

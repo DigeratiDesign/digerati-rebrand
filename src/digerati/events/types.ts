@@ -33,7 +33,7 @@ export interface AppEvents {
     "collectionSplitter:empty": { selector: string };
     "collectionSplitter:performed": {
         total: number;
-        perSplit: number;
+        splitIndex: number;
         firstCount: number;
         secondCount: number;
     };
@@ -49,12 +49,11 @@ export interface AppEvents {
     "copyrightYear:applied": { year: string; selector: string };
     "copyrightYear:missing": { selector: string };
 
-    // Page Blur Title Cycler
-    "pageBlurTitleCycler:initialized": { messagesCount: number };
-    "pageBlurTitleCycler:started": { interval: number };
-    "pageBlurTitleCycler:stopped": { title: string };
-    "pageBlurTitleCycler:destroyed": {};
-    "pageBlurTitleCycler:blurIgnoredIframe": { iframe: string };
+    // Page Blur Title
+    "pageBlurTitle:initialized": { messagesCount: number };
+    "pageBlurTitle:blurred": { title: string };
+    "pageBlurTitle:focused": { title: string };
+    "pageBlurTitle:destroyed": {};
 
     // Skip to Main Content
     "skipToMainContent:activated": { triggerSelector: string; targetSelector: string };

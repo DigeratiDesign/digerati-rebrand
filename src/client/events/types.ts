@@ -3,6 +3,11 @@ import type { AppEvents } from "$digerati/events/types";
 
 declare module "$digerati/events/types" {
     interface AppEvents {
+        // Auto Hide Accordion Item
+        "autoHideAccordionItem:missingItems": { selector: string; };
+        "autoHideAccordionItem:initialized": { count: number; };
+        "autoHideAccordionItem:closedSibling": { closed: HTMLElement; };
+        "autoHideAccordionItem:destroyed": {};
         // Colour Cycle
         "ui:activated": { selector: string; count: number; activeClass: string };
         // Mouse Trail

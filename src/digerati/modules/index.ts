@@ -4,6 +4,6 @@ export { skipToMainContent } from './skipToMainContent';
 export { copyrightYear } from './copyrightYear';
 export { smoothScroll } from './smoothScroll';
 export { autoHideNavbarOnScroll } from './autoHideNavbarOnScroll';
-export { initPageBlurTitleCycler } from './pageBlurTitleCycler';
+export { initPageBlurTitle } from './pageBlurTitle';
 export { collectionSplitter } from './collectionSplitter';
 export { convertMarkdownToTable } from './convertMarkdownToTable';

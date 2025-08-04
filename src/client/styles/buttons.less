@@ -1,11 +1,6 @@
-// src/client/styles/components/_button-effects.less
-
-// Buttons and rich-text link hover text replacement
+/* Buttons */
 .button,
-.button-secondary,
-.text-rich-text {
-
-    // Base span container
+.button-secondary {
     span {
         position: relative;
         display: inline-block;
@@ -13,32 +8,57 @@
         vertical-align: top;
         pointer-events: auto;
 
-        // Nested inner span & links
-        span,
-        & a span {
+        span {
             display: block;
             transition: transform 0.25s ease;
         }
 
-        // Pseudo-element for replacement text
-        &::after,
-        & a::after {
+        &::after {
             content: attr(data-replace);
             position: absolute;
             top: 100%;
             left: 0;
             width: 100%;
+            transition: transform 0.25s ease;
             display: inline-block;
+        }
+    }
+
+    &:hover {
+        span {
+
+            span,
+            &::after {
+                transform: translateY(-100%);
+            }
+        }
+    }
+}
+
+/* Rich Text Links */
+.text-rich-text {
+    a {
+        span {
+            display: block;
             transition: transform 0.25s ease;
         }
 
-        // Hover state for span and pseudo-element
-        .button:hover & span,
-        .button-secondary:hover & span,
-        .text-rich-text a:hover &,
-        & a:hover & {
-            // for text-rich-text a:hover span & and its ::after
-            transform: translateY(-100%);
+        &::after {
+            content: attr(data-replace);
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            transition: transform 0.25s ease;
+            display: inline-block;
+        }
+
+        &:hover {
+
+            span,
+            &::after {
+                transform: translateY(-100%);
+            }
         }
     }
 }

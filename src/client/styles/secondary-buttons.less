@@ -1,95 +1,91 @@
-// src/client/styles/components/_button-secondary.less
-
+// Secondary Buttons
 .button-secondary {
 
-    // Base transitions
     &,
     &::before,
     &::after {
         transition: all ease 300ms;
     }
 
-    // Positioning & z-index
+    // Variants: shared styles
     &[data-wf--secondary-button--variant="solution-1"],
     &[data-wf--secondary-button--variant="solution-2"],
     &[data-wf--secondary-button--variant="solution-3"] {
         position: relative;
         z-index: 3;
         margin-left: 3rem;
-    }
 
-    // Decorative circle behind
-    &::before {
-        content: '';
-        position: absolute;
-        z-index: -2;
-        width: 4.6875rem;
-        height: 4.6875rem;
-        left: -3.5rem;
-        border-radius: 100%;
-        background-color: var(--color-scheme-1--accent);
-
-        // Variant-specific vertical offsets
-        &[data-wf--secondary-button--variant="solution-1"] & {
-            top: -2rem;
+        &::before {
+            position: absolute;
+            z-index: -2;
+            content: '';
+            width: 4.6875rem;
+            height: 4.6875rem;
+            left: -3.5rem;
+            border-radius: 100%;
+            background-color: var(--color-scheme-1--accent);
         }
 
-        &[data-wf--secondary-button--variant="solution-2"] & {
+        &::after {
+            position: absolute;
+            z-index: -1;
+            content: '';
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: var(--_ui-styles---radius--small);
+            border: var(--_ui-styles---stroke--large-border-width) solid var(--color-scheme-1--border);
+            background-color: var(--color-scheme-1--foreground);
+            box-shadow: var(--_ui-styles---stroke--small-box-shadow) var(--_ui-styles---stroke--small-box-shadow) 0 0 var(--color-scheme-1--border);
+            overflow: hidden;
+        }
+
+        &:hover {
+            &::before {
+                transform: translate(-2px, -2px);
+            }
+
+            &::after {
+                box-shadow: 0 0 0 0;
+            }
+        }
+    }
+
+    // Variant-specific overrides
+    &[data-wf--secondary-button--variant="solution-1"] {
+        &:hover {
+            transform: translate(2px, 2px) rotate(-1.73deg);
+        }
+
+        &::before {
+            top: -2rem;
+        }
+    }
+
+    &[data-wf--secondary-button--variant="solution-2"] {
+        &:hover {
+            transform: translate(2px, 2px) rotate(2.52deg);
+        }
+
+        &::before {
             top: -1rem;
         }
 
-        &[data-wf--secondary-button--variant="solution-3"] & {
-            top: -0.5rem;
-        }
-
-        // Hover state shifts the circle
-        &[data-wf--secondary-button--variant="solution-1"]:hover &,
-        &[data-wf--secondary-button--variant="solution-2"]:hover &,
-        &[data-wf--secondary-button--variant="solution-3"]:hover & {
-            transform: translate(-2px, -2px);
-        }
-    }
-
-    // Inner border/background layer
-    &::after {
-        content: '';
-        position: absolute;
-        z-index: -1;
-        top: -3px;
-        left: -3px;
-        right: -3px;
-        bottom: -3px;
-        border-radius: var(--_ui-styles---radius--small);
-        border: var(--_ui-styles---stroke--large-border-width) solid var(--color-scheme-1--border);
-        background-color: var(--color-scheme-1--foreground);
-        box-shadow: var(--_ui-styles---stroke--small-box-shadow) var(--_ui-styles---stroke--small-box-shadow) 0 0 var(--color-scheme-1--border);
-        overflow: hidden;
-
-        // Variant-2 override
-        &[data-wf--secondary-button--variant="solution-2"] & {
+        &::after {
             border: var(--_ui-styles---stroke--large-border-width) solid var(--color-scheme-1--foreground);
             background-color: var(--color-scheme-1--border);
             box-shadow: var(--_ui-styles---stroke--small-box-shadow) var(--_ui-styles---stroke--small-box-shadow) 0 0 var(--color-scheme-1--foreground);
         }
+    }
 
-        // Hover state removes the shadow
-        &[data-wf--secondary-button--variant="solution-1"]:hover &,
-        &[data-wf--secondary-button--variant="solution-2"]:hover &,
-        &[data-wf--secondary-button--variant="solution-3"]:hover & {
-            box-shadow: 0 0 0 0;
+    &[data-wf--secondary-button--variant="solution-3"] {
+        &:hover {
+            transform: translate(2px, 2px) rotate(0.83deg);
         }
-    }
 
-    // Primary hover rotation per variant
-    &[data-wf--secondary-button--variant="solution-1"]:hover {
-        transform: translate(2px, 2px) rotate(-1.73deg);
-    }
-
-    &[data-wf--secondary-button--variant="solution-2"]:hover {
-        transform: translate(2px, 2px) rotate(2.52deg);
-    }
-
-    &[data-wf--secondary-button--variant="solution-3"]:hover {
-        transform: translate(2px, 2px) rotate(.83deg);
+        &::before {
+            top: -0.5rem;
+        }
     }
 }
