@@ -24,7 +24,6 @@
     display: grid;
     grid-template-columns: repeat(var(--cols), var(--diameter));
     gap: var(--gap);
-    animation: colour 5s linear infinite;
 
     .cell {
         width: var(--diameter);
@@ -78,15 +77,5 @@
 @keyframes shrink {
     to {
         transform: translate(var(--hx), var(--vy)) scale(.15);
-    }
-}
-
-@keyframes colour {
-    from {
-        filter: hue-rotate(0);
-    }
-
-    to {
-        filter: hue-rotate(360deg);
     }
 }

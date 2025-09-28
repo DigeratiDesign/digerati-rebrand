@@ -88,3 +88,4 @@ export const initAutoHideAccordionItem = (opts?: AutoHideAccordionItemOptions) =
     instance.init();
     return instance;
 };
+

@@ -27,7 +27,6 @@ const PHASES = {
       Client.initAutoHideAccordionItem,
       Core.skipToMainContent,
       Client.testimonialAvatar,
-      Client.mouseTrail,
       Client.initColourCycle,
       () => Core.convertMarkdownToTable({
         selector: 'markdown',
@@ -50,11 +49,6 @@ const PHASES = {
   fontReady: {
     readyFn: fontReady,
     event: 'core:fontReady',
-    tasks: [
-      Client.linkHoverState,
-      Client.highlightText,
-      Client.unmaskText
-    ],
   },
   ix2Ready: {
     readyFn: ix2Ready,

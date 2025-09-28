@@ -1,5 +1,3 @@
-// src/client/modules/testimonialAvatar.ts
-
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -15,15 +13,28 @@ import { shouldAnimate } from "$digerati/accessibility/reducedMotion";
 gsap.registerPlugin(ScrollTrigger);
 
 /**
+ * Detect Safari (but not Chrome on macOS/iOS)
+ */
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    || (navigator.vendor && navigator.vendor.indexOf("Apple") > -1 && !window.hasOwnProperty("chrome"));
+
+
+/**
  * Testimonial Avatar Halftone effect tied to scroll visibility.
  */
 export const testimonialAvatar = () => {
     autoGroup("Testimonial Avatar", () => {
         eventBus.emit("testimonialAvatar:init", undefined);
-
         // Respect reduced motion preference
         if (!shouldAnimate()) {
             log("Reduced motion requested; skipping testimonial avatar halftone effects.");
+            eventBus.emit("testimonialAvatar:exit", { alt: undefined });
+            return;
+        }
+
+        // Skip Safari only during local development to avoid mixed-content errors
+        if (isSafari && location.hostname === "localhost") {
+            warn("Safari detected in local dev; skipping testimonial avatar halftone effects.");
             eventBus.emit("testimonialAvatar:exit", { alt: undefined });
             return;
         }

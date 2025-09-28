@@ -268,7 +268,7 @@ ${headerSelector} {
 .${hiddenClass} {
   --nav-speed: 0.5s;
   --nav-easing: ease-in;
-  transform: translateY(-105%);
+  transform: translateY(-140%);
 }
 `;
     document.head.appendChild(style);

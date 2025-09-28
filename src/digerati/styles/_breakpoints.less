@@ -1,0 +1,70 @@
+// src/styles/_breakpoints.less
+
+// Webflow defaults
+@w-desktop-min: 992px; // Base in Webflow is ≥992
+@w-tablet-max: 991px; // Tablet and below
+@w-landscape-max: 767px; // Mobile landscape and below
+@w-portrait-max: 479px; // Mobile portrait and below
+
+// Webflow larger breakpoints (optional, use if you’ve enabled them)
+@w-lg-min: 1280px;
+@w-xl-min: 1440px;
+@w-xxl-min: 1920px;
+
+// Generic helpers (accept a block of rules)
+.down(@max, @rules) {
+    @media (max-width: @max) {
+        & {
+            @rules();
+        }
+    }
+}
+
+.up(@min, @rules) {
+    @media (min-width: @min) {
+        & {
+            @rules();
+        }
+    }
+}
+
+.between(@min, @max, @rs) {
+    @media (min-width:@min) and (max-width:@max) {
+        & {
+            @rs();
+        }
+    }
+}
+
+// Webflow-named convenience mixins
+.untilTablet(@rules) {
+    .down(@w-tablet-max, @rules);
+}
+
+// ≤991
+.untilLandscape(@rules) {
+    .down(@w-landscape-max, @rules);
+}
+
+// ≤767
+.untilPortrait(@rules) {
+    .down(@w-portrait-max, @rules);
+}
+
+// ≤479
+
+.from1280(@rules) {
+    .up(@w-lg-min, @rules);
+}
+
+// ≥1280
+.from1440(@rules) {
+    .up(@w-xl-min, @rules);
+}
+
+// ≥1440
+.from1920(@rules) {
+    .up(@w-xxl-min, @rules);
+}
+
+// ≥1920

@@ -94,7 +94,17 @@ if (PRODUCTION) {
 
 // Development build logic: Watch and serve with live reload
 await ctx.watch();
-await ctx.serve({ servedir: BUILD_DIR, port: SERVE_PORT }).then(logServedFiles);
+await ctx.serve({
+  servedir: BUILD_DIR,
+  port: SERVE_PORT,
+  onRequest: (req, res) => {
+    // Force Safari (and all browsers) to never cache during development
+    res.setHeader("Cache-Control", "no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
+}).then(logServedFiles);
+
 
 // Helper: log served files
 function logServedFiles() {
