@@ -27,6 +27,7 @@ const PHASES = {
       Client.initAutoHideAccordionItem,
       Core.skipToMainContent,
       Client.testimonialAvatar,
+      Client.initLegalColourCycle,
       Client.initColourCycle,
       () => Core.convertMarkdownToTable({
         selector: 'markdown',
