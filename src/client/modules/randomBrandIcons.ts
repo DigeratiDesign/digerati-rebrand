@@ -39,7 +39,7 @@ export function initRandomBrandIcons(opts: Opts = {}): void {
     } = opts;
 
     const cycleCfg = typeof cycle === 'object' ? cycle : {};
-    const periodMs = cycle ? (cycleCfg.periodMs ?? 12000) : 0;
+    const totalPeriodMs = cycle ? (cycleCfg.periodMs ?? 12000) : 0;
 
     // Preload all once (best effort)
     [...WEBCLIPS, ...FAVICONS].forEach(src => { const i = new Image(); i.src = src; });
@@ -47,7 +47,7 @@ export function initRandomBrandIcons(opts: Opts = {}): void {
     // Find / create the link elements once
     const links = ensureIconLinks();
 
-    // Choose starting index (persisted → value, else random; cycle option can override)
+    // Choose starting index
     const store = getStore(persist);
     const key = 'brandIconIndex';
     const persisted = store?.getItem(key);
@@ -58,38 +58,40 @@ export function initRandomBrandIcons(opts: Opts = {}): void {
                 ? clampIndex(+persisted)
                 : Math.floor(Math.random() * FAVICONS.length);
 
-    // First paint (optionally add cache-bust just once)
+    // First paint
     applyIndex(index, links, cacheBust);
 
-    // Persist current selection (even if cycling, so a refresh starts from last colour)
+    // Persist current selection
     if (store) store.setItem(key, String(index));
 
-    // Any existing timer from a previous init? Clear it.
+    // Any existing timer? Clear it
     if (cycleTimer != null) {
         clearInterval(cycleTimer);
         cycleTimer = null;
     }
 
     // Start cycling if requested
-    if (cycle && periodMs > 0) {
+    if (cycle && totalPeriodMs > 0) {
+        const stepMs = Math.max(16, Math.floor(totalPeriodMs / FAVICONS.length));
         cycleTimer = window.setInterval(() => {
             index = (index + 1) % FAVICONS.length;
-            applyIndex(index, links, /*cacheBust*/ false); // no need to bust once loaded
+            applyIndex(index, links, /*cacheBust*/ false);
             if (store) store.setItem(key, String(index));
-        }, periodMs);
+        }, stepMs);
     }
 
     // Expose tiny debug API
     (window as any).__brandIcons = {
         set(i: number) { index = clampIndex(i); applyIndex(index, links, false); if (store) store.setItem(key, String(index)); },
         stop() { if (cycleTimer != null) { clearInterval(cycleTimer); cycleTimer = null; } },
-        start(ms = periodMs || 12000) {
+        start(ms = totalPeriodMs || 12000) {
             if (cycleTimer != null) return;
+            const stepMs = Math.max(16, Math.floor(ms / FAVICONS.length));
             cycleTimer = window.setInterval(() => {
                 index = (index + 1) % FAVICONS.length;
                 applyIndex(index, links, false);
                 if (store) store.setItem(key, String(index));
-            }, ms);
+            }, stepMs);
         },
         index: () => index,
     };
@@ -113,7 +115,6 @@ function getStore(mode: PersistMode) {
 }
 
 function ensureIconLinks() {
-    // Reuse if present (created by Webflow/head), else create our own
     const ensure = (rel: string, sizes?: string, type = 'image/png') => {
         let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]${sizes ? `[sizes="${sizes}"]` : ''}`);
         if (!link) {
