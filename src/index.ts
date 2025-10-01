@@ -27,6 +27,11 @@ const PHASES = {
       Core.copyrightYear,
       Client.tally,
       Client.reasonGenerator,
+      () => Client.initRandomBrandIcons({
+        persist: 'none',
+        cacheBust: true,
+        cycle: { periodMs: 12000 } // ← enable cycling
+      }),
     ],
   },
   webflowReady: {
