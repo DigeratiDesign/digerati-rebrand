@@ -1,21 +1,25 @@
 // src/client/styles/animations/_colour-cycle.less
 
-@keyframes colour-cycle {
-    0% {
-        filter: hue-rotate(0deg);
-    }
-
-    100% {
-        filter: hue-rotate(360deg);
-    }
+@property --h {
+    syntax: '<angle>';
+    inherits: true;
+    initial-value: 0deg;
 }
 
-.colour-cycle,
-.preloader {
-    animation: colour-cycle 5s linear infinite;
-    animation-play-state: paused;
+:root {
+    animation: hueClock 12s linear infinite;
+}
 
-    &.is-active {
-        animation-play-state: running;
+.colour-cycle {
+    filter: hue-rotate(var(--h));
+}
+
+@keyframes hueClock {
+    from {
+        --h: 0deg;
+    }
+
+    to {
+        --h: 360deg;
     }
 }
