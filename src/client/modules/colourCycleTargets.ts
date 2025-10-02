@@ -33,17 +33,33 @@ export class ColourCycleTargets {
     }
 
     /**
+     * Safe wrapper so we work with either autoGroup API:
+     *  - callback style: autoGroup("Name", (group) => { ... })
+     *  - token style:    const group = autoGroup("Name"); ... log(..., group)
+     */
+    private withGroup(name: string, fn: (group?: unknown) => void): void {
+        try {
+            // Try callback signature first
+            (autoGroup as any)(name, (group: unknown) => fn(group));
+        } catch {
+            // Fallback to token-return signature
+            const group = (autoGroup as any)(name);
+            fn(group);
+        }
+    }
+
+    /**
      * Initialise the module — apply .colour-cycle classes.
      */
     public init(): void {
-        autoGroup("ColourCycleTargets", () => {
+        this.withGroup("ColourCycleTargets", (group) => {
             this.selectors.forEach((selector) => {
                 const elements = document.querySelectorAll<HTMLElement>(selector);
-
                 elements.forEach((el) => {
                     if (!el.classList.contains("colour-cycle")) {
                         el.classList.add("colour-cycle");
-                        log("Added .colour-cycle to", el);
+                        // Pass group if present; if not, logger will just ignore extra arg
+                        (group !== undefined) ? log("Added .colour-cycle to", el, group) : log("Added .colour-cycle to", el);
                     }
                 });
             });
