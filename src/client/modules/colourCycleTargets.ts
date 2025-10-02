@@ -23,7 +23,6 @@ export class ColourCycleTargets {
     private boundInit: EventListener;
 
     constructor(options: ColourCycleTargetsOptions = {}) {
-        // default selectors
         this.selectors = options.selectors ?? [
             ".text-rich-text.is-legal h2 strong",
             ".text-rich-text.is-legal h3 strong",
@@ -37,16 +36,16 @@ export class ColourCycleTargets {
      * Initialise the module — apply .colour-cycle classes.
      */
     public init(): void {
-        const group = autoGroup("ColourCycleTargets");
+        autoGroup("ColourCycleTargets", () => {
+            this.selectors.forEach((selector) => {
+                const elements = document.querySelectorAll<HTMLElement>(selector);
 
-        this.selectors.forEach((selector) => {
-            const elements = document.querySelectorAll<HTMLElement>(selector);
-
-            elements.forEach((el) => {
-                if (!el.classList.contains("colour-cycle")) {
-                    el.classList.add("colour-cycle");
-                    log("Added .colour-cycle to", el, group);
-                }
+                elements.forEach((el) => {
+                    if (!el.classList.contains("colour-cycle")) {
+                        el.classList.add("colour-cycle");
+                        log("Added .colour-cycle to", el);
+                    }
+                });
             });
         });
     }
