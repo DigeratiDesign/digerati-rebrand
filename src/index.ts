@@ -27,6 +27,11 @@ const PHASES = {
       Core.copyrightYear,
       Client.tally,
       Client.reasonGenerator,
+      Client.initLegalColourCycle,
+      () => Core.convertMarkdownToTable({
+        selector: 'markdown',
+        logOutput: true,
+      }),
       () => Client.initRandomBrandIcons({
         persist: 'none',
         cacheBust: true,
@@ -41,11 +46,6 @@ const PHASES = {
       Client.initAutoHideAccordionItem,
       Core.skipToMainContent,
       Client.testimonialAvatar,
-      Client.initLegalColourCycle,
-      () => Core.convertMarkdownToTable({
-        selector: 'markdown',
-        logOutput: true,
-      }),
       () => Core.autoHideNavbarOnScroll({
         headerSelector: 'header',
         hiddenClass: 'navbar-hidden',
