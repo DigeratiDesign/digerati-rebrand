@@ -1,7 +1,7 @@
 // src/client/modules/index.ts
 
 export { initAutoHideAccordionItem } from './autoHideAccordionItem';
-export { initLegalColourCycle } from './colourCycleTargets';
+export { initLegalColourCycle } from './legalColourCycle';
 export { tally } from './tally';
 export { testimonialAvatar } from './testimonialAvatar';
 export { initRandomBrandIcons } from "./randomBrandIcons";
