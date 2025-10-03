@@ -32,11 +32,6 @@ const PHASES = {
         selector: 'markdown',
         logOutput: true,
       }),
-      () => Client.initRandomBrandIcons({
-        persist: 'none',
-        cacheBust: true,
-        cycle: { periodMs: 12000 } // ← enable cycling
-      }),
     ],
   },
   webflowReady: {
@@ -53,6 +48,13 @@ const PHASES = {
       }),
       () => Core.initPageBlurTitle({ messages: blurMessages }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
+      // () => Client.initFaviconHueRotator({
+      //   size: 32,
+      //   durationMs: 12000,
+      //   maxFps: 12,
+      //   pauseWhenHidden: true,
+      //   debug: false,
+      // })
     ],
   },
   fontReady: {
