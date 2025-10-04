@@ -1,0 +1,44 @@
+// src/digerati/styles/components/_responsive-table.less
+@import "../../digerati/styles/_breakpoints.less";
+
+// Base table styles
+table {
+    &.responsive-table {
+        font-size: 0.9375rem;
+        border-radius: var(--_ui-styles---radius--table-border-radius);
+
+        th {
+            font-weight: bold;
+            background-color: var(--color-scheme-1--foreground);
+            color: var(--color-scheme-1--text);
+        }
+
+        td {
+            background-color: var(--color-scheme-1--background);
+        }
+
+        // Mobile responsive (≤767px)
+        .untilLandscape({
+
+            tbody, tr, td {
+                font-size: 0.875rem;
+            }
+
+            tr {
+                border-radius: var(--_ui-styles---radius--table-border-radius);
+            }
+
+            td {
+
+                &::before {
+                    background-color: #B0A89E;
+                    color: var(--color-scheme-1--text);
+                    font-weight: 600;
+                }
+            }
+
+            // Re-apply table separation for mobile
+            background-color: transparent;
+        });
+}
+}

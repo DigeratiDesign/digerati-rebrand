@@ -14,8 +14,12 @@ export interface ConvertMarkdownOptions {
     logOutput?: boolean;   // whether to console.log resulting HTML per block
 }
 
+const SCROLL_WRAP_CLASS = "table-scroll";
+const RESPONSIVE_TABLE_CLASS = "responsive-table";
+
 /**
- * Convert Markdown to HTML and enhance tables with data-labels for mobile responsiveness.
+ * Convert Markdown to HTML and enhance tables with data-labels for mobile responsiveness,
+ * wrapping them in a horizontally-scrollable container for overflow handling.
  */
 export const convertMarkdownToTable = (opts: ConvertMarkdownOptions = {}): void => {
     const selector = opts.selector ?? "markdown";
@@ -63,8 +67,11 @@ export const convertMarkdownToTable = (opts: ConvertMarkdownOptions = {}): void 
                 const template = document.createElement("template");
                 template.innerHTML = rawHtml.trim();
 
-                const tables = Array.from(template.content.querySelectorAll<HTMLTableElement>("table"));
-                tables.forEach((table) => {
+                const tables = Array.from(
+                    template.content.querySelectorAll<HTMLTableElement>("table")
+                );
+
+                tables.forEach((table, tIndex) => {
                     // Determine header cells: prefer thead > th, else first row of tbody
                     let headerCells: string[] = [];
                     const theadThs = Array.from(table.querySelectorAll("thead tr th"));
@@ -78,21 +85,40 @@ export const convertMarkdownToTable = (opts: ConvertMarkdownOptions = {}): void 
                         }
                     }
 
+                    // Add data-labels to each body cell for stacked layout on small screens
                     const rows = Array.from(table.querySelectorAll("tbody tr"));
                     rows.forEach((row) => {
                         const cells = Array.from(row.querySelectorAll("td"));
                         cells.forEach((cell, i) => {
                             const label = headerCells[i] || "";
-                            if (label) {
-                                cell.setAttribute("data-label", label);
-                            }
+                            if (label) cell.setAttribute("data-label", label);
                         });
                     });
 
-                    table.classList.add("responsive-table");
+                    // Ensure our table class is present
+                    table.classList.add(RESPONSIVE_TABLE_CLASS);
+
+                    // Create a scroll wrapper and move the table inside
+                    const wrapper = document.createElement("div");
+                    wrapper.className = SCROLL_WRAP_CLASS;
+
+                    // Accessibility: derive a readable label from <caption>, if present
+                    const captionText =
+                        table.querySelector("caption")?.textContent?.trim() || "Scrollable table";
+                    wrapper.setAttribute("role", "region");
+                    wrapper.setAttribute("aria-label", captionText);
+                    wrapper.setAttribute("tabindex", "0");
+
+                    // Replace table with wrapper->table in the template DOM
+                    table.replaceWith(wrapper);
+                    wrapper.appendChild(table);
+
                     eventBus.emit("convertMarkdown:enhancedTable", {
                         blockIndex: index,
-                        headerCount: headerCells.length
+                        tableIndex: tIndex,
+                        headerCount: headerCells.length,
+                        wrapped: true,
+                        wrapperClass: SCROLL_WRAP_CLASS
                     });
                 });
 

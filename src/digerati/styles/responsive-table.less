@@ -2,85 +2,83 @@
 @import "./_breakpoints.less";
 
 // tuneables
-@label-col-width: 11rem;
+@label-col-width: 10.5rem;
 @cell-x: 0.75rem;
 
-// Base table styles
-table {
-    &.responsive-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 1px;
-        background-color: transparent;
-        overflow: hidden;
-        border-radius: var(--_ui-styles---radius--table-border-radius);
+.table-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    max-width: 100%;
 
-        th {
-            font-weight: bold;
-            padding: 1rem 0.75rem;
-            text-align: left;
-            background-color: var(--color-scheme-1--foreground);
-            color: var(--color-scheme-1--text);
-        }
-
-        td {
-            border: 1px solid transparent;
-            padding: 0.75rem;
-            text-align: left;
-            vertical-align: top;
-            background-color: var(--color-scheme-1--background);
-        }
-
-        // Mobile responsive (≤767px)
-        .untilLandscape({
-            thead {
-                display: none;
-            }
-
-            tbody, tr, td {
-                display: block;
-                width: 100%;
-                font-size: 0.875rem;
-            }
-
-            tr {
-                margin-bottom: 1.5rem;
-                overflow: hidden;
-                border-radius: var(--_ui-styles---radius--table-border-radius);
-            }
-
-            td {
-                position: relative;
-                padding: 0.75rem @cell-x;
-                padding-left: (@label-col-width + @cell-x); // match label width + spacing
-                background-clip: padding-box;
-                box-sizing: border-box;
-                min-height: 3rem;
-
-                &::before {
-                    content: attr(data-label);
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    height: 100%;
-                    width: @label-col-width;
-                    display: block;
-                    padding: @cell-x;
-                    background-color: var(--color-scheme-1--foreground);
-                    color: var(--color-scheme-1--text);
-                    font-weight: 600;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    z-index: 1;
-                    box-sizing: border-box;
-                }
-            }
-
-            // Re-apply table separation for mobile
+    // Base table styles
+    table {
+        &.responsive-table {
+            width: 100%;
             border-collapse: separate;
             border-spacing: 1px;
             background-color: transparent;
-        });
+            overflow: hidden;
+
+            th {
+                padding: 1rem @cell-x;
+                text-align: left;
+            }
+
+            td {
+                border: 1px solid transparent;
+                padding: @cell-x;
+                text-align: left;
+                vertical-align: top;
+            }
+
+            // Mobile responsive (≤767px)
+            .untilLandscape({
+                thead {
+                    display: none;
+                }
+
+                tbody, tr, td {
+                    display: block;
+                    width: 100%;
+                }
+
+                tr {
+                    margin-bottom: 1.5rem;
+                    overflow: hidden;
+                }
+
+                td {
+                    position: relative;
+                    padding: @cell-x @cell-x;
+                    padding-left: (@label-col-width + @cell-x); // match label width + spacing
+                    background-clip: padding-box;
+                    box-sizing: border-box;
+                    min-height: 3rem;
+
+                    &::before {
+                        content: attr(data-label);
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        height: 100%;
+                        width: @label-col-width;
+                        display: block;
+                        padding: @cell-x;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        z-index: 1;
+                        box-sizing: border-box;
+                    }
+                }
+
+                // Re-apply table separation for mobile
+                border-collapse: separate;
+                border-spacing: 1px;
+                background-color: transparent;
+            });
+    }
 }
 }
