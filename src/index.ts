@@ -48,13 +48,7 @@ const PHASES = {
       }),
       () => Core.initPageBlurTitle({ messages: blurMessages }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
-      // () => Client.initFaviconHueRotator({
-      //   size: 32,
-      //   durationMs: 12000,
-      //   maxFps: 12,
-      //   pauseWhenHidden: true,
-      //   debug: false,
-      // })
+      Client.faviconHueRotateStepped(),
     ],
   },
   fontReady: {
