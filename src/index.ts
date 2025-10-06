@@ -55,6 +55,7 @@ const PHASES = {
     readyFn: fontReady,
     event: 'core:fontReady',
     // no tasks – and that’s fine
+    tasks: []
   },
   ix2Ready: {
     readyFn: ix2Ready,
@@ -69,13 +70,17 @@ Object.values(PHASES).forEach(({ readyFn, event, tasks = [] }) => {
   readyFn(() => {
     autoGroup(event, () => {
       eventBus.emit(event, undefined);
-      for (const fn of tasks) {
+      tasks.forEach((fn, i) => {
         try {
-          fn();
+          if (typeof fn === "function") {
+            fn();
+          } else {
+            console.warn(`[${event}] skipped non-function task at index ${i}:`, fn);
+          }
         } catch (err) {
           console.error(`[${event}] task failed:`, err);
         }
-      }
+      });
     });
   });
 });
