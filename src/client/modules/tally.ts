@@ -1,13 +1,15 @@
 // src/client/modules/tally.ts
 
 /**
- * Tally (Safari-compat: embed URL + safe iframe clear + focus blur)
- *
- * - Convert any Tally URL (/r/{id}, /embed/{id}, full URL, or bare ID) to the embed endpoint
- * - Avoid iframe.src = "" on close (Safari can navigate to a 404); remove the src attribute instead
- * - Blur active element before aria-hidden="true" to avoid a11y warning
+ * Tally
+ * 
+ * Handles opening a Tally.so iframe modal with a fancy preloader,
+ * accessibility focus trapping, and robust fallbacks.
+ * 
+ * Emits structured events and logs for observability.
+ * 
+ * @author <cabal@digerati.design>
  */
-
 import {
   autoGroup,
   log,
@@ -31,33 +33,6 @@ interface TallyHandles {
   openModal: (url: string) => void;
   closeModal: () => void;
 }
-
-/** Minimal, safe params (optional—edit to taste) */
-const TALLY_PARAMS = "hideTitle=1&transparentBackground=1";
-
-/** Convert any incoming Tally URL (or bare ID) to the stable embed endpoint */
-const normalizeTallyUrl = (input: string): string => {
-  const trimmed = (input || "").trim();
-  if (!trimmed) return "about:blank";
-
-  // If it's a URL, try to extract id from /r/{id} or /embed/{id} or ?id=
-  try {
-    const u = new URL(trimmed, window.location.origin);
-    if (u.hostname.includes("tally.so")) {
-      const m = u.pathname.match(/\/(r|embed)\/([A-Za-z0-9]+)/);
-      if (m && m[2]) return `https://tally.so/embed/${m[2]}?${TALLY_PARAMS}`;
-      const qId = u.searchParams.get("id");
-      if (qId) return `https://tally.so/embed/${qId}?${TALLY_PARAMS}`;
-    }
-  } catch {
-    /* not a full URL, fall through */
-  }
-
-  // Bare ID case
-  const bare = trimmed.replace(/[^A-Za-z0-9]/g, "");
-  if (bare) return `https://tally.so/embed/${bare}?${TALLY_PARAMS}`;
-  return "about:blank";
-};
 
 export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
   let handles: TallyHandles = {
@@ -259,10 +234,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
 
     const openModal = (url: string) => {
       autoGroup("Open Modal", () => {
-        // 🔑 Normalize to the embed endpoint to avoid Safari’s redirect block
-        const embedUrl = normalizeTallyUrl(url);
-
-        eventBus.emit("tally:open", { url: embedUrl });
+        eventBus.emit("tally:open", { url });
         showPreloader();
 
         if (overallFallbackTimer) {
@@ -286,16 +258,16 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           loadHandled = true;
           scheduleHideAfterMinDuration();
           cleanListeners();
-          log("Tally iframe loaded successfully for", embedUrl);
-          eventBus.emit("tally:load:success", { url: embedUrl });
+          log("Tally iframe loaded successfully for", url);
+          eventBus.emit("tally:load:success", { url });
         };
         const onError = () => {
           if (loadHandled) return;
           loadHandled = true;
           scheduleHideAfterMinDuration();
           cleanListeners();
-          logError("Tally iframe failed to load for", embedUrl);
-          eventBus.emit("tally:load:error", { url: embedUrl });
+          logError("Tally iframe failed to load for", url);
+          eventBus.emit("tally:load:error", { url });
         };
 
         iframe.addEventListener("load", onLoad);
@@ -305,13 +277,15 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           if (!loadHandled) {
             loadHandled = true;
             hidePreloaderImmediate();
-            eventBus.emit("tally:load:timeout", { url: embedUrl });
+            eventBus.emit("tally:load:timeout", { url });
           }
           overallFallbackTimer = null;
         }, 5000);
 
-        // Set the normalized URL
-        iframe.src = embedUrl;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const fixedUrl = isSafari ? `${url}${url.includes("?") ? "&" : "?"}_saf=${Date.now()}` : url;
+
+        iframe.src = url;
 
         modal.classList.add("is-active");
         document.body.classList.add("no-scroll");
@@ -321,7 +295,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           closeBtn.focus();
         }, 50);
         document.addEventListener("keydown", handleKeyDown);
-        eventBus.emit("tally:opened", { url: embedUrl });
+        eventBus.emit("tally:opened", { url });
       });
     };
 
@@ -331,18 +305,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         log("Closing tally modal");
         modal.classList.remove("is-active");
         document.body.classList.remove("no-scroll");
-
-        // ⚠️ Avoid “retained focus” a11y warning
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
-
-        // Keep your original aria-hidden behavior
         modal.setAttribute("aria-hidden", "true");
-
-        // ⚠️ Safari-safe: don’t set empty string; remove the attribute
-        iframe.removeAttribute("src");
-
+        iframe.src = "";
         if (previousActiveElement && (previousActiveElement as HTMLElement).focus) {
           (previousActiveElement as HTMLElement).focus();
         }
@@ -362,6 +326,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       if (!link) return;
       e.preventDefault();
       const href = (link as HTMLAnchorElement).getAttribute("href") || "";
+      console.log("Href", href);
       if (href) openModal(href);
     };
 
@@ -372,8 +337,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const params = new URLSearchParams(window.location.search);
     const formId = params.get("formId");
     if (formId) {
-      // 🔑 Normalize here too
-      const url = normalizeTallyUrl(formId);
+      const url = `https://tally.so/embed/${encodeURIComponent(formId)}`;
       log("FormId detected, auto-opening:", formId);
       useDarkPreloaderThisOpen = true;
       openModal(url);
