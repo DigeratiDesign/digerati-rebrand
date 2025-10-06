@@ -2,12 +2,16 @@
 
 /**
  * Tally
- * 
+ *
  * Handles opening a Tally.so iframe modal with a fancy preloader,
  * accessibility focus trapping, and robust fallbacks.
- * 
+ *
  * Emits structured events and logs for observability.
- * 
+ *
+ * Safari/iOS fixes:
+ *  - Use /embed/{id} instead of /r/{id} inside iframes (avoids redirect 404s)
+ *  - Never set iframe.src = "" (Safari treats it as a real navigation -> 404)
+ *
  * @author <cabal@digerati.design>
  */
 import {
@@ -34,6 +38,44 @@ interface TallyHandles {
   closeModal: () => void;
 }
 
+/** Default Tally embed params (tweak as desired) */
+const TALLY_PARAMS =
+  "hideTitle=1&transparentBackground=1&alignLeft=1&hideFooter=1";
+
+/**
+ * Normalize any input (full URL, /r/{id}, /embed/{id}, or bare ID) to a Tally embed URL.
+ * Falls back to about:blank if it can't parse anything usable.
+ */
+const normalizeTallyUrl = (input: string): string => {
+  const trimmed = (input || "").trim();
+  if (!trimmed) return "about:blank";
+
+  // Attempt to parse as a URL; if it’s relative this will resolve against current origin.
+  try {
+    const u = new URL(trimmed, window.location.origin);
+    if (u.hostname.includes("tally.so")) {
+      // Try to extract the ID from /r/{id} or /embed/{id}
+      const m = u.pathname.match(/\/(r|embed)\/([A-Za-z0-9]+)/);
+      if (m && m[2]) {
+        return `https://tally.so/embed/${m[2]}?${TALLY_PARAMS}`;
+      }
+      // If someone pasted a full form URL with query id (rare), try id param first:
+      const qId = u.searchParams.get("id");
+      if (qId) {
+        return `https://tally.so/embed/${qId}?${TALLY_PARAMS}`;
+      }
+    }
+  } catch {
+    // Not a full URL, continue with bare ID handling.
+  }
+
+  // Treat as bare ID: strip non-alphanumerics
+  const bare = trimmed.replace(/[^A-Za-z0-9]/g, "");
+  if (bare) return `https://tally.so/embed/${bare}?${TALLY_PARAMS}`;
+
+  return "about:blank";
+};
+
 export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
   let handles: TallyHandles = {
     openModal: (_: string) => { },
@@ -51,6 +93,11 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       eventBus.emit("tally:init:error", { reason: "missing-dom-elements" });
       return;
     }
+
+    // iFrame hardening / defaults
+    // (safe even if attributes already exist; sets on first run)
+    iframe.setAttribute("referrerpolicy", "no-referrer-when-downgrade");
+    iframe.setAttribute("allow", "fullscreen; clipboard-write");
 
     // State
     let previousActiveElement: Element | null = null;
@@ -73,7 +120,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       random: () => Math.random() * N * N
     };
     const modeNames = Object.keys(modes);
-    const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
+    const pickRandomMode = () =>
+      modeNames[Math.floor(Math.random() * modeNames.length)];
 
     const buildGrid = (container: HTMLElement, mode: string) => {
       container.innerHTML = "";
@@ -176,7 +224,10 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
 
         const onTransitionEnd = (e: TransitionEvent) => {
           if (e.propertyName === "opacity") {
-            preloader.removeEventListener("transitionend", onTransitionEnd as any);
+            preloader.removeEventListener(
+              "transitionend",
+              onTransitionEnd as any
+            );
             cleanup();
             eventBus.emit("tally:preloader:hide", { method: "fade" });
           }
@@ -184,7 +235,10 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         preloader.addEventListener("transitionend", onTransitionEnd as any);
 
         localFallback = window.setTimeout(() => {
-          preloader.removeEventListener("transitionend", onTransitionEnd as any);
+          preloader.removeEventListener(
+            "transitionend",
+            onTransitionEnd as any
+          );
           cleanup();
           eventBus.emit("tally:preloader:hide", { method: "fade-fallback" });
         }, 600);
@@ -234,7 +288,9 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
 
     const openModal = (url: string) => {
       autoGroup("Open Modal", () => {
-        eventBus.emit("tally:open", { url });
+        const embedUrl = normalizeTallyUrl(url);
+
+        eventBus.emit("tally:open", { url: embedUrl });
         showPreloader();
 
         if (overallFallbackTimer) {
@@ -258,16 +314,17 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           loadHandled = true;
           scheduleHideAfterMinDuration();
           cleanListeners();
-          log("Tally iframe loaded successfully for", url);
-          eventBus.emit("tally:load:success", { url });
+          log("Tally iframe loaded successfully for", embedUrl);
+          eventBus.emit("tally:load:success", { url: embedUrl });
         };
+
         const onError = () => {
           if (loadHandled) return;
           loadHandled = true;
           scheduleHideAfterMinDuration();
           cleanListeners();
-          logError("Tally iframe failed to load for", url);
-          eventBus.emit("tally:load:error", { url });
+          logError("Tally iframe failed to load for", embedUrl);
+          eventBus.emit("tally:load:error", { url: embedUrl });
         };
 
         iframe.addEventListener("load", onLoad);
@@ -277,12 +334,21 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           if (!loadHandled) {
             loadHandled = true;
             hidePreloaderImmediate();
-            eventBus.emit("tally:load:timeout", { url });
+            eventBus.emit("tally:load:timeout", { url: embedUrl });
           }
           overallFallbackTimer = null;
         }, 5000);
 
-        iframe.src = url;
+        // If reopening same URL in Safari, force a real reload
+        if (iframe.src === embedUrl) {
+          iframe.removeAttribute("src");
+          requestAnimationFrame(() => {
+            iframe.src = embedUrl;
+          });
+        } else {
+          iframe.src = embedUrl;
+        }
+
         modal.classList.add("is-active");
         document.body.classList.add("no-scroll");
         modal.setAttribute("aria-hidden", "false");
@@ -291,7 +357,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           closeBtn.focus();
         }, 50);
         document.addEventListener("keydown", handleKeyDown);
-        eventBus.emit("tally:opened", { url });
+        eventBus.emit("tally:opened", { url: embedUrl });
       });
     };
 
@@ -302,7 +368,10 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         modal.classList.remove("is-active");
         document.body.classList.remove("no-scroll");
         modal.setAttribute("aria-hidden", "true");
-        iframe.src = "";
+
+        // IMPORTANT: avoid iframe.src = "" (Safari navigates -> 404)
+        iframe.removeAttribute("src"); // or: iframe.src = "about:blank";
+
         if (previousActiveElement && (previousActiveElement as HTMLElement).focus) {
           (previousActiveElement as HTMLElement).focus();
         }
@@ -332,8 +401,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const params = new URLSearchParams(window.location.search);
     const formId = params.get("formId");
     if (formId) {
-      const url = `https://tally.so/r/${encodeURIComponent(formId)}`;
-      log("FormId detected, auto-opening:", formId);
+      const url = normalizeTallyUrl(formId);
+      log("FormId detected, auto-opening (embed):", url);
       useDarkPreloaderThisOpen = true;
       openModal(url);
     }

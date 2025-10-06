@@ -1,31 +1,13 @@
-// src/client/styles/components/_tally-modal.less
+// src/client/styles/tally.less
 
 // Tally modal “fullscreen” pseudo‐element
 .tally-modal_fullscreen {
-    &::after {
-        content: '';
-        position: absolute;
-        z-index: 1;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        height: 3.5rem;
-        background-color: var(--color-scheme-1--foreground);
-    }
 
     &.is-active {
         display: block;
 
         .tally-modal_preloader {
             /* JS handles the fade now; remove any animation here */
-        }
-    }
-
-    // Responsive override
-    @media screen and (min-width: 577px) {
-        &::after {
-            width: 13rem;
-            height: 4rem;
         }
     }
 }
@@ -42,12 +24,12 @@
 
 // Preloader base styles
 .tally-modal_preloader {
-    --bg: #fff;
+    --bg: #e8e6e3;
     --front: #000;
     --disc-front: #000;
 
     &.dark-mode {
-        --bg: #000;
+        --bg: #2a2722;
         --disc-front: #fff;
         background: var(--bg);
 
