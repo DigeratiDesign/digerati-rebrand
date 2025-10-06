@@ -48,7 +48,7 @@ const PHASES = {
       }),
       () => Core.initPageBlurTitle({ messages: blurMessages }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
-      Client.faviconHueRotateStepped(),
+      Client.faviconHueRotateStepped,
     ],
   },
   fontReady: {
