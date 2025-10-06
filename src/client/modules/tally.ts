@@ -282,8 +282,19 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           overallFallbackTimer = null;
         }, 5000);
 
+        // --- Safari first-load redirect bug workaround ---
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        const fixedUrl = isSafari ? `${url}${url.includes("?") ? "&" : "?"}_saf=${Date.now()}` : url;
+        if (isSafari) {
+          log("🐞 [Safari] Pre-warming embed URL to prevent cached /r/ redirect:", url);
+          fetch(url, { mode: "no-cors", cache: "reload" })
+            .then(() => {
+              log("✅ [Safari] Pre-warm fetch completed for", url);
+            })
+            .catch((err) => {
+              warn("⚠️ [Safari] Pre-warm fetch failed:", err);
+            });
+        }
+        // --- end Safari patch ---
 
         iframe.src = url;
 
