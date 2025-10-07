@@ -4,7 +4,7 @@ import { eventBus, initEventDebugLogging } from '$digerati/events';
 import { autoGroup } from '$digerati/utils/logger';
 import * as Core from '$digerati/modules';
 import * as Client from '$client/modules';
-import { blurMessages } from '$client/constants/blurMessages';
+// import { blurMessages } from '$client/constants/blurMessages';
 
 initEventDebugLogging();
 
@@ -46,7 +46,7 @@ const PHASES = {
         hiddenClass: 'navbar-hidden',
         injectCSS: true,
       }),
-      () => Core.initPageBlurTitle({ messages: blurMessages }),
+      // () => Core.initPageBlurTitle({ messages: blurMessages }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
       Client.faviconHueRotateStepped,
     ],
@@ -54,15 +54,12 @@ const PHASES = {
   fontReady: {
     readyFn: fontReady,
     event: 'core:fontReady',
-    // no tasks – and that’s fine
     tasks: []
   },
   ix2Ready: {
     readyFn: ix2Ready,
     event: 'core:ix2Ready',
-    tasks: [
-      /* your GSAP/ScrollTrigger init */
-    ],
+    tasks: [],
   },
 } satisfies Record<string, Phase>;
 
