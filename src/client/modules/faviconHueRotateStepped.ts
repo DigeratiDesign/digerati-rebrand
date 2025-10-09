@@ -16,7 +16,7 @@ import { eventBus } from "$digerati/events";
 // Tune step cadence via interval rather than arbitrary step count
 const DURATION = 12000;  // ms for full cycle
 const STEP_INTERVAL_MS = 500; // e.g., 500=2Hz, 1000=1Hz
-const STEPS = Math.max(6, Math.round(DURATION / STEP_INTERVAL_MS));  // derived steps
+const STEPS = Math.max(8, Math.round(DURATION / STEP_INTERVAL_MS));  // derived steps
 const SIZE32 = 32;
 const SIZE16 = 16;
 
