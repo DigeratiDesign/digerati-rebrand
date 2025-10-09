@@ -13,6 +13,12 @@
       "$fnord/*": [
         "src/fnord/*"
       ],
+      "auto-console-group": [
+        "src/vendor/auto-console-group/index.ts"
+      ],
+      "auto-console-group/*": [
+        "src/vendor/auto-console-group/*"
+      ]
     },
     "types": [
       "@finsweet/ts-utils"

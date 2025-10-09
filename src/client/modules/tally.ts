@@ -312,7 +312,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
 
     const closeModal = () => {
       autoGroup("Close Modal", () => {
-        eventBus.emit("tally:close", undefined);
+        eventBus.emit("tally:close");
         log("Closing tally modal");
         modal.classList.remove("is-active");
         document.body.classList.remove("no-scroll");
@@ -327,7 +327,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         }
         hidePreloaderImmediate();
         document.removeEventListener("keydown", handleKeyDown);
-        eventBus.emit("tally:closed", undefined);
+        eventBus.emit("tally:closed");
       });
     };
 
@@ -355,7 +355,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     }
 
     handles = { openModal, closeModal };
-    eventBus.emit("tally:initialized", undefined);
+    eventBus.emit("tally:initialized");
   });
 
   return handles;

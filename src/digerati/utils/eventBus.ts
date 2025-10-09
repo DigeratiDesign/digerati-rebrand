@@ -1,45 +1,49 @@
 // src/digerati/utils/eventBus.ts
 
 type Listener<Payload> = (payload: Payload) => void;
+type ListenerMap<Events extends Record<string, unknown>> = {
+  [K in keyof Events]?: Set<Listener<Events[K]>>;
+};
 
 export class EventBus<Events extends Record<string, any>> {
-    private listeners = new Map<keyof Events, Set<Listener<any>>>();
+  private listeners: ListenerMap<Events> = {};
 
-    on<K extends keyof Events>(event: K, listener: Listener<Events[K]>): () => void {
-        const set = this.listeners.get(event) ?? new Set();
-        set.add(listener as Listener<any>);
-        this.listeners.set(event, set);
-        // return unsubscribe
-        return () => this.off(event, listener);
-    }
+  on<K extends keyof Events>(event: K, listener: Listener<Events[K]>): () => void {
+    const set = this.listeners[event] ?? new Set<Listener<Events[K]>>();
+    set.add(listener);
+    this.listeners[event] = set;
+    return () => this.off(event, listener);
+  }
 
-    off<K extends keyof Events>(event: K, listener: Listener<Events[K]>): void {
-        const set = this.listeners.get(event);
-        if (!set) return;
-        set.delete(listener as Listener<any>);
-        if (set.size === 0) {
-            this.listeners.delete(event);
-        }
+  off<K extends keyof Events>(event: K, listener: Listener<Events[K]>): void {
+    const set = this.listeners[event];
+    if (!set) return;
+    set.delete(listener);
+    if (set.size === 0) {
+      delete this.listeners[event];
     }
+  }
 
-    emit<K extends keyof Events>(event: K, payload: Events[K]): void {
-        const set = this.listeners.get(event);
-        if (!set) return;
-        // copy to avoid mutation during iteration
-        Array.from(set).forEach((listener) => {
-            try {
-                (listener as Listener<Events[K]>)(payload);
-            } catch (e) {
-                // Fallback log; don't throw from bus
-                console.error(`[EventBus] listener for "${String(event)}" threw`, e);
-            }
-        });
-    }
+  emit<K extends keyof Events>(
+    ...args: Events[K] extends void ? [event: K] : [event: K, payload: Events[K]]
+  ): void {
+    const [event, payload] = args as [K, Events[K]];
+    const set = this.listeners[event];
+    if (!set) return;
 
-    once<K extends keyof Events>(event: K, listener: Listener<Events[K]>): void {
-        const unsub = this.on(event, (payload) => {
-            unsub();
-            listener(payload);
-        });
-    }
+    Array.from(set).forEach((listener) => {
+      try {
+        listener(payload);
+      } catch (e) {
+        console.error(`[EventBus] listener for "${String(event)}" threw`, e);
+      }
+    });
+  }
+
+  once<K extends keyof Events>(event: K, listener: Listener<Events[K]>): void {
+    const unsubscribe = this.on(event, (payload) => {
+      unsubscribe();
+      listener(payload);
+    });
+  }
 }

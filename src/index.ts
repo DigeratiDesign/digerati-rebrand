@@ -1,6 +1,7 @@
 // src/index.ts
 import { domReady, webflowReady, ix2Ready, fontReady } from '$digerati/register';
 import { eventBus, initEventDebugLogging } from '$digerati/events';
+import type { AppEvents } from '$digerati/events/types';
 import { autoGroup } from '$digerati/utils/logger';
 import * as Core from '$digerati/modules';
 import * as Client from '$client/modules';
@@ -12,9 +13,9 @@ initEventDebugLogging();
 type Task = () => void;
 
 /** A phase can optionally have tasks */
-interface Phase {
+interface Phase<K extends keyof AppEvents = keyof AppEvents> {
   readyFn: (cb: () => void) => void;
-  event: string;
+  event: K;
   tasks?: Task[];
 }
 
@@ -23,18 +24,20 @@ const PHASES = {
     readyFn: domReady,
     event: 'core:domReady',
     tasks: [
-      Core.widowControl({
-        skipSelectors: ['[aria-hidden="true"]', '.no-widow'],
-      }),
+      () =>
+        Core.widowControl({
+          skipSelectors: ['[aria-hidden="true"]', '.no-widow'],
+        }),
       Core.collectionSplitter,
       Core.copyrightYear,
       Client.tally,
       Client.reasonGenerator,
       Client.initLegalColourCycle,
-      () => Core.convertMarkdownToTable({
-        selector: 'markdown',
-        logOutput: true,
-      }),
+      () =>
+        Core.convertMarkdownToTable({
+          selector: 'markdown',
+          logOutput: true,
+        }),
     ],
   },
   webflowReady: {
@@ -44,11 +47,12 @@ const PHASES = {
       Client.initAutoHideAccordionItem,
       Core.skipToMainContent,
       Client.testimonialAvatar,
-      () => Core.autoHideNavbarOnScroll({
-        headerSelector: 'header',
-        hiddenClass: 'navbar-hidden',
-        injectCSS: true,
-      }),
+      () =>
+        Core.autoHideNavbarOnScroll({
+          headerSelector: 'header',
+          hiddenClass: 'navbar-hidden',
+          injectCSS: true,
+        }),
       // () => Core.initPageBlurTitle({ messages: blurMessages }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
       Client.faviconHueRotateStepped,
@@ -69,7 +73,7 @@ const PHASES = {
 Object.values(PHASES).forEach(({ readyFn, event, tasks = [] }) => {
   readyFn(() => {
     autoGroup(event, () => {
-      eventBus.emit(event, undefined);
+      eventBus.emit(event);
       tasks.forEach((fn, i) => {
         try {
           if (typeof fn === "function") {

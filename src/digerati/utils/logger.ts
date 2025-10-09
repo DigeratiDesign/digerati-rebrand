@@ -1,5 +1,7 @@
 // src/digerati/utils/logger.ts
 
+import autoConsoleGroup, { type AutoGroupedConsole } from "auto-console-group";
+
 import { shouldLog } from "$digerati/utils/env";
 
 /**
@@ -10,6 +12,11 @@ import { shouldLog } from "$digerati/utils/env";
  */
 const DEBUG = shouldLog();
 
+const digeratiConsole: AutoGroupedConsole = autoConsoleGroup({
+    collapsed: true,
+    console,
+});
+
 /**
  * Internal helper to prefix and call console method safely.
  */
@@ -19,12 +26,26 @@ const callConsole = (
     prefix: string,
     ...args: any[]
 ) => {
-    const fn = (console as any)[method];
-    if (!fn) return;
-
-    if (alwaysShow || DEBUG) {
-        fn.call(console, `[Digerati]${prefix}`, ...args);
+    if (!alwaysShow && !DEBUG) {
+        return;
     }
+
+    const target = digeratiConsole as Console & Record<string, unknown>;
+    const targetMethod = target?.[method];
+    const fallbackMethod = (console as any)[method] as ((...args: any[]) => void) | undefined;
+
+    const fn = typeof targetMethod === "function"
+        ? (targetMethod as (...args: any[]) => void)
+        : typeof fallbackMethod === "function"
+          ? fallbackMethod
+          : undefined;
+
+    if (!fn) {
+        return;
+    }
+
+    const receiver = fn === targetMethod ? target : console;
+    fn.call(receiver, `[Digerati]${prefix}`, ...args);
 };
 
 export const log = (...args: any[]) => {
@@ -58,51 +79,73 @@ export const debug = (...args: any[]) => {
 };
 
 export const table = (data: any) => {
-    if (DEBUG && console.table) {
-        if (console.groupCollapsed) {
-            console.groupCollapsed("[Digerati] Table");
-        }
-        console.table(data);
-        if (console.groupEnd) {
-            console.groupEnd();
-        }
+    if (!DEBUG) {
+        return;
     }
+
+    const open = (digeratiConsole.groupCollapsed ?? digeratiConsole.group)?.bind(digeratiConsole);
+    const close = digeratiConsole.groupEnd?.bind(digeratiConsole);
+    const showTable = (digeratiConsole.table ?? console.table)?.bind(digeratiConsole);
+
+    if (open && close && showTable) {
+        open("[Digerati] Table");
+        try {
+            showTable(data);
+        } finally {
+            close();
+        }
+        return;
+    }
+
+    showTable?.(data);
 };
 
 export const group = (label: string) => {
-    if (DEBUG && console.groupCollapsed) {
-        console.groupCollapsed(`[Digerati] ${label}`);
+    if (!DEBUG) {
+        return;
     }
+
+    const open = (digeratiConsole.groupCollapsed ?? digeratiConsole.group)?.bind(digeratiConsole);
+    open?.(`[Digerati] ${label}`);
 };
 
 export const groupEnd = () => {
-    if (DEBUG && console.groupEnd) {
-        console.groupEnd();
+    if (!DEBUG) {
+        return;
     }
+
+    digeratiConsole.groupEnd?.call(digeratiConsole);
 };
 
 export const trace = (...args: any[]) => {
-    if (DEBUG && console.trace) {
-        callConsole("trace", false, "", ...args);
-    }
+    callConsole("trace", false, "", ...args);
 };
 
 export const time = (label: string) => {
-    if (DEBUG && console.time) {
-        console.time(`[Digerati] ${label}`);
+    if (!DEBUG) {
+        return;
     }
+
+    const timer = digeratiConsole.time ?? console.time;
+    timer?.call(digeratiConsole, `[Digerati] ${label}`);
 };
 
 export const timeEnd = (label: string) => {
-    if (DEBUG && console.timeEnd) {
-        console.timeEnd(`[Digerati] ${label}`);
+    if (!DEBUG) {
+        return;
     }
+
+    const timerEnd = digeratiConsole.timeEnd ?? console.timeEnd;
+    timerEnd?.call(digeratiConsole, `[Digerati] ${label}`);
 };
 
 export const assert = (condition: boolean, ...args: any[]) => {
-    if (DEBUG && console.assert) {
-        console.assert(condition, "[Digerati]", ...args);
+    if (!DEBUG) {
+        return;
     }
+
+    const assertFn = digeratiConsole.assert ?? console.assert;
+    assertFn?.call(digeratiConsole, condition, "[Digerati]", ...args);
 };
 
 /**
@@ -112,10 +155,43 @@ export const assert = (condition: boolean, ...args: any[]) => {
  */
 // utils/logger.ts
 export function autoGroup<T>(moduleName: string, callback: () => T): T {
-    console.groupCollapsed(`[${moduleName}]`);
-    try {
+    if (!DEBUG) {
         return callback();
-    } finally {
-        console.groupEnd();
     }
+
+    const groupWithCallback = digeratiConsole.group;
+
+    if (typeof groupWithCallback === "function" && groupWithCallback.length >= 2) {
+        return (groupWithCallback as (label: string, fn: () => T) => T)(
+            `[Digerati] ${moduleName}`,
+            callback,
+        );
+    }
+
+    const open = (digeratiConsole.groupCollapsed ?? digeratiConsole.group)?.bind(digeratiConsole);
+    const close = digeratiConsole.groupEnd?.bind(digeratiConsole);
+
+    if (open && close) {
+        open(`[Digerati] ${moduleName}`);
+        let threw = false;
+        let result: T | undefined;
+        let error: unknown;
+
+        try {
+            result = callback();
+        } catch (caught) {
+            threw = true;
+            error = caught;
+        }
+
+        close();
+
+        if (threw) {
+            throw error;
+        }
+
+        return result as T;
+    }
+
+    return callback();
 }

@@ -24,7 +24,7 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
  */
 export const testimonialAvatar = () => {
     autoGroup("Testimonial Avatar", () => {
-        eventBus.emit("testimonialAvatar:init", undefined);
+        eventBus.emit("testimonialAvatar:init");
         // Respect reduced motion preference
         if (!shouldAnimate()) {
             log("Reduced motion requested; skipping testimonial avatar halftone effects.");
