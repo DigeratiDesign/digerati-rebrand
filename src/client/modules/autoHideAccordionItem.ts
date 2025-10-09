@@ -30,7 +30,7 @@ export class AutoHideAccordionItem {
     constructor(opts: AutoHideAccordionItemOptions = {}) {
         this.itemSelector = opts.itemSelector ?? ".accordion-content-item";
         this.wrapSelector = opts.wrapSelector ?? ".accordion-content-wrap";
-        this.boundClick = this.handleClick.bind(this);
+        this.boundClick = (event) => this.handleClick(event as MouseEvent);
         this.items = Array.from(document.querySelectorAll<HTMLElement>(this.itemSelector));
 
         if (!this.items.length) {
@@ -78,7 +78,7 @@ export class AutoHideAccordionItem {
             item.removeEventListener("click", this.boundClick, true);
         });
         log("AutoHideAccordionItem destroyed");
-        eventBus.emit("autoHideAccordionItem:destroyed", {});
+        eventBus.emit("autoHideAccordionItem:destroyed");
     }
 }
 

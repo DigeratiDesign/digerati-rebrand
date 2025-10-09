@@ -56,7 +56,9 @@ declare global {
  */
 export function webflowReady(fn: Callback): void {
     // Ensure the Webflow queue exists
-    if (!window.Webflow) window.Webflow = [];
+    if (!window.Webflow) {
+        window.Webflow = [] as unknown as NonNullable<typeof window.Webflow>;
+    }
     // Push the callback into the Webflow queue
     window.Webflow.push(fn);
 }

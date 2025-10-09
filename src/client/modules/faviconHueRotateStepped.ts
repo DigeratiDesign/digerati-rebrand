@@ -196,7 +196,7 @@ const makeLink = (id: string, sizes: string): HTMLLinkElement => {
     l.id = id;
     l.rel = "icon";
     l.type = "image/png";
-    l.sizes = sizes;
+    l.setAttribute("sizes", sizes);
     document.head.appendChild(l);
     return l;
 };
