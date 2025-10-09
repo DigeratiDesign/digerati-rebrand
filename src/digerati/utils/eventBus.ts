@@ -24,15 +24,16 @@ export class EventBus<Events extends Record<string, any>> {
     }
   }
 
-  emit<K extends keyof Events>(event: K): Events[K] extends void ? void : never;
-  emit<K extends keyof Events>(event: K, payload: Events[K]): void;
-  emit<K extends keyof Events>(event: K, payload?: Events[K]): void {
+  emit<K extends keyof Events>(
+    ...args: Events[K] extends void ? [event: K] : [event: K, payload: Events[K]]
+  ): void {
+    const [event, payload] = args as [K, Events[K]];
     const set = this.listeners[event];
     if (!set) return;
 
     Array.from(set).forEach((listener) => {
       try {
-        listener(payload as Events[K]);
+        listener(payload);
       } catch (e) {
         console.error(`[EventBus] listener for "${String(event)}" threw`, e);
       }
