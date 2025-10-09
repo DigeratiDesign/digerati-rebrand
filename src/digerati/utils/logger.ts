@@ -118,7 +118,9 @@ export const groupEnd = () => {
 };
 
 export const trace = (...args: any[]) => {
-    callConsole("trace", false, "", ...args);
+    if (DEBUG && typeof console.trace === "function") {
+        callConsole("trace", false, "", ...args);
+    }
 };
 
 export const time = (label: string) => {
@@ -155,7 +157,12 @@ export const assert = (condition: boolean, ...args: any[]) => {
  */
 // utils/logger.ts
 export function autoGroup<T>(moduleName: string, callback: () => T): T {
-    if (!DEBUG) {
+    if (!DEBUG || !console.groupCollapsed || !console.groupEnd) {
+        return callback();
+    }
+
+    console.groupCollapsed(`[Digerati] ${moduleName}`);
+    try {
         return callback();
     }
 
