@@ -59,7 +59,7 @@ export class PageBlurTitle {
     document.removeEventListener("visibilitychange", this.boundVisibilityChange);
     document.title = this.originalTitle;
     log("PageBlurTitle destroyed and original title restored.");
-    eventBus.emit("pageBlurTitle:destroyed", {});
+    eventBus.emit("pageBlurTitle:destroyed");
   }
 }
 

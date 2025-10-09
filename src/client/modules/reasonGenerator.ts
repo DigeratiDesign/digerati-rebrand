@@ -38,7 +38,7 @@ export const reasonGenerator = (options: ReasonGeneratorOptions = {}): string | 
     return autoGroup("Reason Generator", () => {
         const selector = options.selector ?? DEFAULT_SELECTOR;
         const element = document.querySelector<HTMLElement>(selector);
-        eventBus.emit("reasonGenerator:started", undefined);
+        eventBus.emit("reasonGenerator:started");
 
         if (!element) {
             devError(`Reason element not found using selector "${selector}"`);

@@ -8,7 +8,7 @@
  * 
  * @author <cabal@digerati.design>
  */
-import { autoGroup, log, warn } from "$digerati/utils/logger";
+import { autoGroup, log } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
 
 export interface AutoHideNavbarOnScrollOptions {
@@ -36,6 +36,8 @@ class AutoHideNavbarOnScrollController {
   private loadedWithHash: boolean;
   private initialY: number;
   private scrollTolerance: number;
+  private initialDelayWithoutHash: number;
+  private hashActivationFallbackMs: number;
   private lastMenuOpenState: boolean | null = null;
   private isHidden: boolean = false;
 
@@ -52,7 +54,11 @@ class AutoHideNavbarOnScrollController {
     this.hiddenClass = hiddenClass!;
     this.loadedWithHash = !!window.location.hash;
     this.initialY = window.pageYOffset;
-    this.scrollTolerance = scrollTolerance;
+    this.scrollTolerance = scrollTolerance!;
+    this.initialDelayWithoutHash =
+      typeof initialDelayWithoutHash === "number" ? initialDelayWithoutHash : 100;
+    this.hashActivationFallbackMs =
+      typeof hashActivationFallbackMs === "number" ? hashActivationFallbackMs : 500;
 
     this.scrollListener = this.scrollListener.bind(this);
     this.update = this.update.bind(this);
@@ -116,7 +122,7 @@ class AutoHideNavbarOnScrollController {
     this.header.classList.add(this.hiddenClass);
     this.isHidden = true;
     log("Navbar hidden due to scroll down.");
-    eventBus.emit("autoHideNavbar:hide", {});
+    eventBus.emit("autoHideNavbar:hide");
   }
 
   private showHeader(): void {
@@ -124,7 +130,7 @@ class AutoHideNavbarOnScrollController {
     this.header.classList.remove(this.hiddenClass);
     this.isHidden = false;
     log("Navbar shown (scroll up or menu open).");
-    eventBus.emit("autoHideNavbar:show", {});
+    eventBus.emit("autoHideNavbar:show");
   }
 
   private attachObserver = (el: Element) => {
@@ -186,7 +192,7 @@ class AutoHideNavbarOnScrollController {
     if (!this.header) return;
 
     autoGroup("AutoHideNavbarOnScroll Init", () => {
-      this.header.classList.remove(this.hiddenClass);
+      this.header!.classList.remove(this.hiddenClass);
       this.lastY = window.pageYOffset;
       this.initialY = window.pageYOffset;
       this.ticking = false;
@@ -213,13 +219,13 @@ class AutoHideNavbarOnScrollController {
             log("AutoHideNavbarOnScroll activated after fallback timeout (hash load).");
             eventBus.emit("autoHideNavbar:activated", { reason: "timeout" });
           }
-        }, 500);
+        }, this.hashActivationFallbackMs);
       } else {
         setTimeout(() => {
           this.active = true;
           log("AutoHideNavbarOnScroll activated after initial delay.");
           eventBus.emit("autoHideNavbar:activated", { reason: "initial-delay" });
-        }, 100);
+        }, this.initialDelayWithoutHash);
       }
 
       eventBus.emit("autoHideNavbar:initialized", {
@@ -240,7 +246,7 @@ class AutoHideNavbarOnScrollController {
       this.menuContainerObserver = null;
     }
     log("AutoHideNavbarOnScroll destroyed.");
-    eventBus.emit("autoHideNavbar:destroyed", {});
+    eventBus.emit("autoHideNavbar:destroyed");
   }
 }
 
