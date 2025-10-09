@@ -139,7 +139,7 @@ export class LegalColourCycle {
             this.observer.disconnect();
             this.observer = undefined;
             log("LegalColourCycle observer disconnected.");
-            eventBus.emit("legalColourCycle:observerDisconnected", {});
+            eventBus.emit("legalColourCycle:observerDisconnected");
         }
 
         if (this.removeOnDestroy && this.applied.size) {
@@ -156,7 +156,7 @@ export class LegalColourCycle {
 
         this.applied.clear();
         log("LegalColourCycle destroyed.");
-        eventBus.emit("legalColourCycle:destroyed", {});
+        eventBus.emit("legalColourCycle:destroyed");
     }
 }
 
