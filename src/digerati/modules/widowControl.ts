@@ -1,4 +1,5 @@
 // src/digerati/modules/widowControl.ts
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 
 /**
  * Widow Control (keep last N words together).
@@ -8,7 +9,7 @@
  *
  * - No layout reads or measurement.
  * - Preserves HTML structure and IX2/event bindings (mutates Text nodes only).
- * - Skips elements with too few words.
+ * - Skips elements with too few words and respects skip selectors (.no-widow, etc.).
  *
  * @author <cabal@digerati.design>
  */
@@ -17,10 +18,11 @@ import { autoGroup, log, warn } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
 
 export interface WidowControlOptions {
-    selector?: string;         // default 'p, h1, h2, h3, h4, h5, h6, li'
+    selector?: string;         // default 'p, h1, h2, h3, h4, h5, h6'
     skipSelectors?: string[];  // e.g. ['[aria-hidden="true"]', '.no-widow']
     nowrapCount?: number;      // keep last N words together; default 2 (min 2)
     markAttr?: string;         // attribute set after processing; default 'data-dd-widow'
+    debug?: boolean;           // when true, logs per-element skip decisions
 }
 
 export const widowControl = (opts: WidowControlOptions = {}) => {
@@ -29,6 +31,12 @@ export const widowControl = (opts: WidowControlOptions = {}) => {
         const skipSelectors = opts.skipSelectors ?? ['[aria-hidden="true"]', '.no-widow'];
         const nowrapCount = Math.max(2, opts.nowrapCount ?? 2);
         const markAttr = opts.markAttr ?? "data-dd-widow";
+        const debug = !!opts.debug;
+
+        // Build robust skip list: match element and any descendants
+        const skipList = skipSelectors.length
+            ? skipSelectors.flatMap(s => [s, `${s} *`]).join(",")
+            : "";
 
         const targets = Array.from(document.querySelectorAll<HTMLElement>(selector));
         if (targets.length === 0) {
@@ -38,10 +46,33 @@ export const widowControl = (opts: WidowControlOptions = {}) => {
         }
 
         log(`Processing ${targets.length} elements (nowrapCount=${nowrapCount}).`);
+        if (debug) {
+            targets.forEach((el) =>
+                log("widow:debug-scan", {
+                    tag: el.tagName,
+                    className: (el as HTMLElement).className,
+                    matchesSkip: skipList ? el.matches(skipList) : false,
+                    closestSkip: skipSelectors.length ? !!el.closest(skipSelectors.join(",")) : false,
+                })
+            );
+        }
 
         targets.forEach((el) => {
-            if (el.hasAttribute(markAttr)) return; // already processed
-            if (skipSelectors.length && el.matches(skipSelectors.join(","))) return;
+            // 1) Respect skip selectors first (element itself, any descendant, or if element is inside a skipped ancestor)
+            const shouldSkip =
+                (skipList && el.matches(skipList)) ||
+                (skipSelectors.length && !!el.closest(skipSelectors.join(",")));
+
+            if (shouldSkip) {
+                if (el.getAttribute(markAttr) === "fixed") revertWidow(el); // undo earlier fixes if re-running
+                el.setAttribute(markAttr, "skipped");
+                eventBus.emit("widow:skipped", { el, reason: "skipSelector" });
+                if (debug) log("widow:debug-skip", { el, reason: "skipSelector" });
+                return;
+            }
+
+            // 2) Then bail if already processed
+            if (el.hasAttribute(markAttr)) return;
 
             const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
             const wordCount = text ? text.split(" ").filter(Boolean).length : 0;
@@ -49,6 +80,7 @@ export const widowControl = (opts: WidowControlOptions = {}) => {
             if (wordCount < nowrapCount) {
                 el.setAttribute(markAttr, "skipped-too-few-words");
                 eventBus.emit("widow:skipped", { el, reason: "tooFewWords" });
+                if (debug) log("widow:debug-skip", { el, reason: "tooFewWords" });
                 return;
             }
 
@@ -56,9 +88,11 @@ export const widowControl = (opts: WidowControlOptions = {}) => {
             if (fixed) {
                 el.setAttribute(markAttr, "fixed");
                 eventBus.emit("widow:fixed", { el, nowrapCount });
+                if (debug) log("widow:debug-fixed", { el, nowrapCount });
             } else {
                 el.setAttribute(markAttr, "noop");
                 eventBus.emit("widow:noop", { el });
+                if (debug) log("widow:debug-noop", { el });
             }
         });
 
@@ -122,3 +156,32 @@ function replaceSpaceAt(root: HTMLElement, globalIndex: number, replacement: str
     }
     return false;
 }
+
+/**
+ * Revert NBSPs (\u00A0) back to normal spaces for a subtree.
+ * Allows toggling a skip class and re-running the module.
+ */
+function revertWidow(root: HTMLElement): boolean {
+    const NBSP = "\u00A0";
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let changed = false;
+    let n = walker.nextNode() as Text | null;
+    while (n) {
+        const v = n.nodeValue ?? "";
+        if (v.includes(NBSP)) {
+            n.nodeValue = v.replace(/\u00A0/g, " ");
+            changed = true;
+        }
+        n = walker.nextNode() as Text | null;
+    }
+    return changed;
+}
+
+// Example usage:
+// widowControl({
+//   selector: "p, h1, h2, h3, h4, h5, h6",
+//   skipSelectors: ['[aria-hidden="true"]', '.no-widow'],
+//   nowrapCount: 2,
+//   markAttr: "data-dd-widow",
+//   debug: false,
+// });
