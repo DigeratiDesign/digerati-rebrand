@@ -23,7 +23,9 @@ const PHASES = {
     readyFn: domReady,
     event: 'core:domReady',
     tasks: [
-      Core.widowControl,
+      Core.widowControl({
+        skipSelectors: ['[aria-hidden="true"]', '.no-widow'],
+      }),
       Core.collectionSplitter,
       Core.copyrightYear,
       Client.tally,

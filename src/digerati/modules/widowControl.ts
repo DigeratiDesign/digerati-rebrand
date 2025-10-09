@@ -26,7 +26,7 @@ export interface WidowControlOptions {
 export const widowControl = (opts: WidowControlOptions = {}) => {
     autoGroup("Widow Control", () => {
         const selector = opts.selector ?? "p, h1, h2, h3, h4, h5, h6";
-        const skipSelectors = opts.skipSelectors ?? [];
+        const skipSelectors = opts.skipSelectors ?? ['[aria-hidden="true"]', '.no-widow'];
         const nowrapCount = Math.max(2, opts.nowrapCount ?? 2);
         const markAttr = opts.markAttr ?? "data-dd-widow";
 
@@ -122,11 +122,3 @@ function replaceSpaceAt(root: HTMLElement, globalIndex: number, replacement: str
     }
     return false;
 }
-
-// Example usage:
-// widowControl({
-//   selector: "p, h1, h2, h3, h4, h5, h6",
-//   skipSelectors: ['[aria-hidden="true"]', '.no-widow'],
-//   nowrapCount: 2,
-//   markAttr: "data-dd-widow"
-// });
