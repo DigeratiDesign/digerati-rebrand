@@ -47,18 +47,16 @@ class AutoHideNavbarOnScrollController {
     scrollTolerance = 5,
     initialDelayWithoutHash = 100,
     hashActivationFallbackMs = 500
-  }: Partial<AutoHideNavbarOnScrollOptions> = {}) {
+  }: AutoHideNavbarOnScrollOptions = {}) {
     this.header = document.querySelector<HTMLElement>(headerSelector);
     this.lastY = window.pageYOffset;
     this.ticking = false;
-    this.hiddenClass = hiddenClass!;
+    this.hiddenClass = hiddenClass ?? "navbar-hidden";
     this.loadedWithHash = !!window.location.hash;
     this.initialY = window.pageYOffset;
-    this.scrollTolerance = scrollTolerance!;
-    this.initialDelayWithoutHash =
-      typeof initialDelayWithoutHash === "number" ? initialDelayWithoutHash : 100;
-    this.hashActivationFallbackMs =
-      typeof hashActivationFallbackMs === "number" ? hashActivationFallbackMs : 500;
+    this.scrollTolerance = scrollTolerance ?? 5;
+    this.initialDelayWithoutHash = initialDelayWithoutHash ?? 100;
+    this.hashActivationFallbackMs = hashActivationFallbackMs ?? 500;
 
     this.scrollListener = this.scrollListener.bind(this);
     this.update = this.update.bind(this);
@@ -189,10 +187,11 @@ class AutoHideNavbarOnScrollController {
   }
 
   init(): void {
-    if (!this.header) return;
+    const header = this.header;
+    if (!header) return;
 
     autoGroup("AutoHideNavbarOnScroll Init", () => {
-      this.header!.classList.remove(this.hiddenClass);
+      header.classList.remove(this.hiddenClass);
       this.lastY = window.pageYOffset;
       this.initialY = window.pageYOffset;
       this.ticking = false;
@@ -280,13 +279,7 @@ ${headerSelector} {
     document.head.appendChild(style);
   }
 
-  const controller = new AutoHideNavbarOnScrollController({
-    headerSelector: opts.headerSelector,
-    hiddenClass: opts.hiddenClass,
-    scrollTolerance: opts.scrollTolerance,
-    initialDelayWithoutHash: opts.initialDelayWithoutHash,
-    hashActivationFallbackMs: opts.hashActivationFallbackMs
-  } as any);
+  const controller = new AutoHideNavbarOnScrollController(opts);
   controller.init();
   return controller;
 };
