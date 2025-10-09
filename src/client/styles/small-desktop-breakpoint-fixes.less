@@ -1,0 +1,12 @@
+// src/digerati/styles/components/small-desktop-breakpoint-fixes.less
+
+@import "../../digerati/styles/_breakpoints.less";
+
+.between(@w-desktop-min, @@w-lg-min, @rs) {
+
+    .home_solutions-grid,
+    .persuasion-grid {
+        grid-template-rows: auto auto auto;
+        grid-template-columns: 1fr;
+    }
+}
