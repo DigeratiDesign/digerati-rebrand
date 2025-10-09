@@ -3,23 +3,34 @@
  * Cycles the site favicon through discrete hue-rotated frames while syncing
  * a continuous CSS --h variable for page hue animations.
  *
+ * Skips devices/contexts where favicons are not visible or wasteful
+ * (iOS Safari, PWAs/standalone, iframes, reduced motion). Pauses when
+ * the tab is hidden.
+ *
  * @author <cabal@digerati.design>
  */
 
 import { autoGroup, log, devError } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
 
+// Tune step cadence via interval rather than arbitrary step count
 const DURATION = 12000;  // ms for full cycle
+const STEP_INTERVAL_MS = 500; // e.g., 500=2Hz, 1000=1Hz
+const STEPS = Math.max(6, Math.round(DURATION / STEP_INTERVAL_MS));  // derived steps
 const SIZE32 = 32;
 const SIZE16 = 16;
-const STEPS = 30;        // number of discrete favicon colors
+
 const MAX_FPS = 60;      // CSS update cadence (page smoothness)
 
-/**
- * Main favicon hue rotator.
- */
 export const faviconHueRotateStepped = (): void => {
     autoGroup("Favicon Hue Rotate (Stepped)", () => {
+        const gate = shouldAnimateFavicon();
+        if (!gate.ok) {
+            log(`Favicon hue rotation skipped: ${gate.reason ?? "unknown"}`);
+            eventBus.emit("faviconHueRotateStepped:skipped", { reason: gate.reason });
+            return;
+        }
+
         eventBus.emit("faviconHueRotateStepped:started");
 
         const baseHref = findBaseHref();
@@ -32,8 +43,8 @@ export const faviconHueRotateStepped = (): void => {
         const c32 = document.createElement("canvas");
         const ctx32 = c32.getContext("2d");
         if (!ctx32 || typeof c32.toDataURL !== "function") return;
-        try { ctx32.filter = "hue-rotate(0deg)"; } catch { }
-        if (!("filter" in ctx32)) return;
+        try { (ctx32 as any).filter = "hue-rotate(0deg)"; } catch { }
+        if (!("filter" in (ctx32 as any))) return;
 
         const c16 = document.createElement("canvas");
         const ctx16 = c16.getContext("2d")!;
@@ -57,18 +68,18 @@ export const faviconHueRotateStepped = (): void => {
 
                 // 32×32 frame
                 ctx32.clearRect(0, 0, SIZE32, SIZE32);
-                ctx32.imageSmoothingEnabled = false;
-                ctx32.filter = `hue-rotate(${angle}deg)`;
+                (ctx32 as any).imageSmoothingEnabled = false;
+                (ctx32 as any).filter = `hue-rotate(${angle}deg)`;
                 ctx32.drawImage(img, 0, 0, SIZE32, SIZE32);
-                ctx32.filter = "none";
+                (ctx32 as any).filter = "none";
                 frames32[i] = c32.toDataURL("image/png");
 
                 // 16×16 frame
                 ctx16.clearRect(0, 0, SIZE16, SIZE16);
-                ctx16.imageSmoothingEnabled = false;
-                ctx16.filter = `hue-rotate(${angle}deg)`;
+                (ctx16 as any).imageSmoothingEnabled = false;
+                (ctx16 as any).filter = `hue-rotate(${angle}deg)`;
                 ctx16.drawImage(img, 0, 0, SIZE16, SIZE16);
-                ctx16.filter = "none";
+                (ctx16 as any).filter = "none";
                 frames16[i] = c16.toDataURL("image/png");
             }
 
@@ -113,9 +124,18 @@ export const faviconHueRotateStepped = (): void => {
                 rafId = requestAnimationFrame(tick);
             };
 
-            rafId = requestAnimationFrame(tick);
-            addEventListener("pagehide", () => { if (rafId) cancelAnimationFrame(rafId); }, { once: true });
+            const start = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
+            const stop = () => { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } };
 
+            // Pause when tab hidden; resume when visible
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "hidden") stop(); else start();
+            });
+
+            // Stop on pagehide (Safari bfcache)
+            addEventListener("pagehide", () => { stop(); }, { once: true });
+
+            start();
             eventBus.emit("faviconHueRotateStepped:running");
         };
 
@@ -125,6 +145,40 @@ export const faviconHueRotateStepped = (): void => {
 };
 
 // ----------------- helpers -----------------
+
+const shouldAnimateFavicon = (): { ok: boolean; reason?: string } => {
+    // Respect OS motion prefs
+    if (matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+        return { ok: false, reason: "reduced-motion" };
+    }
+
+    // Skip if we're embedded
+    if (window.top !== window.self) {
+        return { ok: false, reason: "in-iframe" };
+    }
+
+    // Skip standalone/PWA
+    const isStandalone =
+        matchMedia?.("(display-mode: standalone)")?.matches ||
+        // iOS PWA flag
+        (navigator as any).standalone === true;
+    if (isStandalone) {
+        return { ok: false, reason: "standalone" };
+    }
+
+    // iOS Safari heuristic (no CriOS/FxiOS)
+    const ua = navigator.userAgent;
+    const isIOS = /iP(hone|ad|od)/.test(ua);
+    const isCriOS = /CriOS/i.test(ua);
+    const isFxiOS = /FxiOS/i.test(ua);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    const isIOSSafari = isIOS && isSafari && !isCriOS && !isFxiOS;
+    if (isIOSSafari) {
+        return { ok: false, reason: "ios-safari" };
+    }
+
+    return { ok: true };
+};
 
 const findBaseHref = (): string | null => {
     const links = Array.from(document.querySelectorAll("link[rel*='icon']")) as HTMLLinkElement[];
