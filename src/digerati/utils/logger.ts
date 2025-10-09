@@ -1,6 +1,6 @@
 // src/digerati/utils/logger.ts
 
-import autoConsoleGroup, { type AutoGroupedConsole } from "auto-console-group";
+import autoConsoleGroup from "auto-console-group";
 
 import { shouldLog } from "$digerati/utils/env";
 
@@ -12,7 +12,7 @@ import { shouldLog } from "$digerati/utils/env";
  */
 const DEBUG = shouldLog();
 
-const digeratiConsole: AutoGroupedConsole = autoConsoleGroup({
+const digeratiConsole = autoConsoleGroup({
     collapsed: true,
     console,
 });
@@ -118,7 +118,9 @@ export const groupEnd = () => {
 };
 
 export const trace = (...args: any[]) => {
-    callConsole("trace", false, "", ...args);
+    if (DEBUG && typeof console.trace === "function") {
+        callConsole("trace", false, "", ...args);
+    }
 };
 
 export const time = (label: string) => {
@@ -155,17 +157,19 @@ export const assert = (condition: boolean, ...args: any[]) => {
  */
 // utils/logger.ts
 export function autoGroup<T>(moduleName: string, callback: () => T): T {
-    if (!DEBUG) {
+    if (!DEBUG || !console.groupCollapsed || !console.groupEnd) {
         return callback();
     }
 
-    const groupWithCallback = digeratiConsole.group;
+    console.groupCollapsed(`[Digerati] ${moduleName}`);
+    try {
+        return callback();
+    }
 
-    if (typeof groupWithCallback === "function" && groupWithCallback.length >= 2) {
-        return (groupWithCallback as (label: string, fn: () => T) => T)(
-            `[Digerati] ${moduleName}`,
-            callback,
-        );
+    const runner = digeratiConsole.group as unknown;
+
+    if (typeof runner === "function") {
+        return (runner as (label: string, fn: () => T) => T)(`[Digerati] ${moduleName}`, callback);
     }
 
     const open = (digeratiConsole.groupCollapsed ?? digeratiConsole.group)?.bind(digeratiConsole);
@@ -173,24 +177,11 @@ export function autoGroup<T>(moduleName: string, callback: () => T): T {
 
     if (open && close) {
         open(`[Digerati] ${moduleName}`);
-        let threw = false;
-        let result: T | undefined;
-        let error: unknown;
-
         try {
-            result = callback();
-        } catch (caught) {
-            threw = true;
-            error = caught;
+            return callback();
+        } finally {
+            close();
         }
-
-        close();
-
-        if (threw) {
-            throw error;
-        }
-
-        return result as T;
     }
 
     return callback();
