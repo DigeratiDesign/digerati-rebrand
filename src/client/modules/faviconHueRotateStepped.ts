@@ -12,7 +12,7 @@ import { eventBus } from "$digerati/events";
 const DURATION = 12000;  // ms for full cycle
 const SIZE32 = 32;
 const SIZE16 = 16;
-const STEPS = 24;        // number of discrete favicon colors
+const STEPS = 30;        // number of discrete favicon colors
 const MAX_FPS = 60;      // CSS update cadence (page smoothness)
 
 /**

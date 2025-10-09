@@ -23,6 +23,7 @@ const PHASES = {
     readyFn: domReady,
     event: 'core:domReady',
     tasks: [
+      Core.widowControl,
       Core.collectionSplitter,
       Core.copyrightYear,
       Client.tally,

@@ -7,3 +7,4 @@ export { autoHideNavbarOnScroll } from './autoHideNavbarOnScroll';
 export { initPageBlurTitle } from './pageBlurTitle';
 export { collectionSplitter } from './collectionSplitter';
 export { convertMarkdownToTable } from './convertMarkdownToTable';
+export { widowControl } from './widowControl';
