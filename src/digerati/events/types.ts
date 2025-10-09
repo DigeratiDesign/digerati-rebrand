@@ -7,10 +7,16 @@ export interface AppEvents {
     // Auto Hide Header
     "autoHideNavbar:initialized": { hiddenClass: string };
     "autoHideNavbar:activated": { reason: "initial-delay" | "scroll" | "timeout" };
-    "autoHideNavbar:hide": {};
-    "autoHideNavbar:show": {};
+    "autoHideNavbar:hide": void;
+    "autoHideNavbar:show": void;
     "autoHideNavbar:menuStateChanged": { isOpen: boolean };
-    "autoHideNavbar:destroyed": {};
+    "autoHideNavbar:destroyed": void;
+
+    // Auto Hide Accordion Item
+    "autoHideAccordionItem:missingItems": { selector: string };
+    "autoHideAccordionItem:closedSibling": { closed: HTMLElement };
+    "autoHideAccordionItem:initialized": { count: number };
+    "autoHideAccordionItem:destroyed": void;
 
     // Core lifecycle
     "core:domReady": void;
@@ -41,9 +47,30 @@ export interface AppEvents {
     // Convert Markdown
     "convertMarkdown:init": { selector: string };
     "convertMarkdown:blockConverted": { blockIndex: number; originalSelector: string };
-    "convertMarkdown:enhancedTable": { blockIndex: number; headerCount: number };
+    "convertMarkdown:enhancedTable": {
+        blockIndex: number;
+        tableIndex: number;
+        headerCount: number;
+        wrapped: boolean;
+        wrapperClass: string;
+    };
     "convertMarkdown:done": { count: number };
     "convertMarkdown:error": { blockIndex: number; error: string };
+
+    // Favicon Hue Rotate
+    "faviconHueRotateStepped:skipped": { reason?: string };
+    "faviconHueRotateStepped:started": void;
+    "faviconHueRotateStepped:running": void;
+
+    // Legal Colour Cycle
+    "legalColourCycle:noneFound": { selector: string };
+    "legalColourCycle:applied": { count: number; selector: string };
+    "legalColourCycle:appliedObserved": { count: number };
+    "legalColourCycle:observerAttached": { root: string };
+    "legalColourCycle:initialized": { selector: string; observed: boolean; initialCount: number };
+    "legalColourCycle:observerDisconnected": void;
+    "legalColourCycle:removedOnDestroy": { count: number };
+    "legalColourCycle:destroyed": void;
 
     // Current Year
     "copyrightYear:applied": { year: string; selector: string };
@@ -53,7 +80,12 @@ export interface AppEvents {
     "pageBlurTitle:initialized": { messagesCount: number };
     "pageBlurTitle:blurred": { title: string };
     "pageBlurTitle:focused": { title: string };
-    "pageBlurTitle:destroyed": {};
+    "pageBlurTitle:destroyed": void;
+
+    // Reason Generator
+    "reasonGenerator:started": void;
+    "reasonGenerator:error": { message: string };
+    "reasonGenerator:generated": { reason: string };
 
     // Skip to Main Content
     "skipToMainContent:activated": { triggerSelector: string; targetSelector: string };
@@ -70,4 +102,31 @@ export interface AppEvents {
     "smoothScroll:finished": { targetId: string | null; interrupted: boolean };
     "smoothScroll:hashTriggered": { hash: string };
     "smoothScroll:skippedReducedMotion": { targetId: string | null };
+
+    // Tally embed modal
+    "tally:init:error": { reason: string };
+    "tally:preloader:show": { mode: string };
+    "tally:preloader:hide": { method: "immediate" | "fade" | "fade-fallback" };
+    "tally:open": { url: string };
+    "tally:load:success": { url: string };
+    "tally:load:error": { url: string };
+    "tally:load:timeout": { url: string };
+    "tally:opened": { url: string };
+    "tally:close": void;
+    "tally:closed": void;
+    "tally:initialized": void;
+
+    // Testimonial Avatar
+    "testimonialAvatar:init": void;
+    "testimonialAvatar:enter": { alt: string };
+    "testimonialAvatar:exit": { alt: string | undefined };
+    "testimonialAvatar:error": { message: string; alt?: string };
+    "testimonialAvatar:initialized": { count: number };
+    "testimonialAvatar:destroyed": { alt: string };
+
+    // Widow Control
+    "widow:empty": { selector: string };
+    "widow:skipped": { el: HTMLElement; reason: "skipSelector" | "tooFewWords" };
+    "widow:fixed": { el: HTMLElement; nowrapCount: number };
+    "widow:noop": { el: HTMLElement };
 }

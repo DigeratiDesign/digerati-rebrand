@@ -2,7 +2,10 @@
 
 declare global {
     interface Window {
-        Webflow?: Array<() => void>;
+        Webflow?: Array<() => void> & {
+            push: (fn: () => void) => void;
+            require?: (module: string) => any;
+        };
     }
 }
 
@@ -21,7 +24,9 @@ export const domReady = (cb: () => void): void => {
  * Runs callback when Webflow has initialized its internal queue (safe for IX2 / Webflow components).
  */
 export const webflowReady = (cb: () => void): void => {
-    window.Webflow ||= [];
+    if (!window.Webflow) {
+        window.Webflow = [] as unknown as NonNullable<typeof window.Webflow>;
+    }
     window.Webflow.push(cb);
 };
 
