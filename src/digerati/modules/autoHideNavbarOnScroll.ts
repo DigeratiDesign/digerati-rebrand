@@ -8,7 +8,7 @@
  * 
  * @author <cabal@digerati.design>
  */
-import { autoGroup, log, warn } from "$digerati/utils/logger";
+import { autoGroup, log } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
 
 export interface AutoHideNavbarOnScrollOptions {
