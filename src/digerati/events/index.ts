@@ -23,6 +23,16 @@ export const initEventDebugLogging = () => {
         eventBus.on("animations:started", ({ name }) => log("animation started:", name));
         eventBus.on("animations:finished", ({ name }) => log("animation finished:", name));
 
+        eventBus.on("lottieViewport:initialized", ({ count, selector }) =>
+            log(`lottie viewport: ${count} animations for selector ${selector}`)
+        );
+        eventBus.on("lottieViewport:enter", ({ name }) =>
+            log("lottie viewport enter:", name)
+        );
+        eventBus.on("lottieViewport:exit", ({ name }) =>
+            log("lottie viewport exit:", name)
+        );
+
         eventBus.on("forms:submitted", ({ formId }) => log("form submitted:", formId));
         eventBus.on("cms:itemsLoaded", ({ count }) => log("cms items loaded:", count));
     });

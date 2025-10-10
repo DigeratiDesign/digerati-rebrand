@@ -38,6 +38,7 @@ const PHASES = {
           selector: 'markdown',
           logOutput: true,
         }),
+      Client.initLottieViewportController,
     ],
   },
   webflowReady: {
