@@ -12,6 +12,7 @@
 
 import { autoGroup, log, devError } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
+import { normalizeHexColor, hexToHue, normalizeHue, hueDistance } from "../utils/color";
 
 // Tune step cadence via interval rather than arbitrary step count
 const DURATION = 12000;  // ms for full cycle
@@ -21,6 +22,21 @@ const SIZE32 = 32;
 const SIZE16 = 16;
 
 const MAX_FPS = 60;      // CSS update cadence (page smoothness)
+const HUE_MATCH_TOLERANCE_DEG = 1.5;
+
+interface FreezeTarget {
+    hue: number;
+    phase: number;
+    step: number;
+}
+
+const hueToPhase = (hue: number): number => normalizeHue(hue) / 360;
+
+const hueToStep = (hue: number): number => {
+    const phase = hueToPhase(hue);
+    const raw = Math.round(phase * STEPS);
+    return raw % STEPS;
+};
 
 export const faviconHueRotateStepped = (): void => {
     autoGroup("Favicon Hue Rotate (Stepped)", () => {
@@ -56,6 +72,38 @@ export const faviconHueRotateStepped = (): void => {
         let link32 = makeLink("live-favicon-32", `${SIZE32}x${SIZE32}`);
         let link16 = makeLink("live-favicon-16", `${SIZE16}x${SIZE16}`);
 
+        let lockHandler: ((hex: string) => void) | null = null;
+        let releaseHandler: (() => void) | null = null;
+        let queuedLockHex: string | null = null;
+        let releaseQueued = false;
+
+        const handleLockEvent = ({ hex }: { hex: string }) => {
+            const normalized = normalizeHexColor(hex);
+            if (!normalized) return;
+            if (lockHandler) {
+                lockHandler(normalized);
+            } else {
+                queuedLockHex = normalized;
+                releaseQueued = false;
+            }
+        };
+
+        const handleReleaseEvent = () => {
+            if (releaseHandler) {
+                releaseHandler();
+            } else {
+                queuedLockHex = null;
+                releaseQueued = true;
+            }
+        };
+
+        const removeLockListener = eventBus.on("tally:accent:lock", handleLockEvent);
+        const removeReleaseListener = eventBus.on("tally:accent:release", handleReleaseEvent);
+        const teardownListeners = () => {
+            removeLockListener();
+            removeReleaseListener();
+        };
+
         // Load base image and precompute hue-rotated frames
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -85,7 +133,6 @@ export const faviconHueRotateStepped = (): void => {
 
             log(`Precomputed ${STEPS} favicon frames`);
 
-            // Swap helper (forces repaint)
             const swapFavicons = (data32: string, data16: string) => {
                 const n32 = makeLink("live-favicon-32", `${SIZE32}x${SIZE32}`);
                 n32.href = data32;
@@ -101,45 +148,137 @@ export const faviconHueRotateStepped = (): void => {
             let rafId: number | null = null;
             let lastCssWriteAt = 0;
             let lastStep = -1;
+            let origin = performance.now();
+            let freezeTarget: FreezeTarget | null = null;
+            let pausedAt: number | null = null;
+
+            const setCssHue = (angle: number) => {
+                document.documentElement.style.setProperty("--h", `${Math.round(angle)}deg`);
+            };
+
+            const applyStep = (index: number) => {
+                swapFavicons(frames32[index], frames16[index]);
+                lastStep = index;
+            };
+
+            const computePhase = (now: number) => {
+                const elapsed = now - origin;
+                const wrapped = ((elapsed % DURATION) + DURATION) % DURATION;
+                return wrapped / DURATION;
+            };
+
+            const freezeAt = (now: number, target: FreezeTarget) => {
+                const { phase, hue, step } = target;
+                origin = now - phase * DURATION;
+                pausedAt = now;
+                document.documentElement.style.setProperty("--h", `${hue}deg`);
+                applyStep(step);
+                lastCssWriteAt = now;
+                stop();
+            };
 
             const tick = (now: number) => {
                 const cssMinDelta = 1000 / MAX_FPS;
+                const phase = computePhase(now);
+                const angle = phase * 360;
 
-                // Continuous CSS hue
                 if (now - lastCssWriteAt >= cssMinDelta) {
-                    const phase = (now % DURATION) / DURATION;
-                    const angle = Math.round(phase * 360);
-                    document.documentElement.style.setProperty("--h", `${angle}deg`);
+                    setCssHue(angle);
                     lastCssWriteAt = now;
                 }
 
-                // Stepped favicon hue
-                const phaseForStep = (now % DURATION) / DURATION;
-                const stepIndex = Math.floor(phaseForStep * STEPS) % STEPS;
+                const stepIndex = Math.floor(phase * STEPS) % STEPS;
                 if (stepIndex !== lastStep) {
-                    swapFavicons(frames32[stepIndex], frames16[stepIndex]);
-                    lastStep = stepIndex;
+                    applyStep(stepIndex);
+                }
+
+                if (freezeTarget) {
+                    const delta = hueDistance(angle, freezeTarget.hue);
+                    if (delta <= HUE_MATCH_TOLERANCE_DEG || stepIndex === freezeTarget.step) {
+                        freezeAt(now, freezeTarget);
+                        freezeTarget = null;
+                        return;
+                    }
                 }
 
                 rafId = requestAnimationFrame(tick);
             };
 
-            const start = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
-            const stop = () => { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } };
+            const start = () => {
+                if (!rafId) {
+                    rafId = requestAnimationFrame(tick);
+                }
+            };
 
-            // Pause when tab hidden; resume when visible
+            const stop = () => {
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+            };
+
+            const resumeFromPause = () => {
+                if (pausedAt != null) {
+                    const now = performance.now();
+                    origin += now - pausedAt;
+                    pausedAt = null;
+                }
+            };
+
+            const lockToHex = (hex: string) => {
+                const normalized = normalizeHexColor(hex);
+                if (!normalized) return;
+                const hue = hexToHue(normalized);
+                if (hue === null) return;
+                resumeFromPause();
+                const adjustedHue = normalizeHue(hue);
+                freezeTarget = {
+                    hue: adjustedHue,
+                    phase: hueToPhase(adjustedHue),
+                    step: hueToStep(adjustedHue),
+                };
+                start();
+            };
+
+            const release = () => {
+                freezeTarget = null;
+                resumeFromPause();
+                start();
+            };
+
+            lockHandler = lockToHex;
+            releaseHandler = release;
+
+            if (queuedLockHex) {
+                lockToHex(queuedLockHex);
+                queuedLockHex = null;
+            }
+            if (releaseQueued) {
+                release();
+                releaseQueued = false;
+            }
+
             document.addEventListener("visibilitychange", () => {
-                if (document.visibilityState === "hidden") stop(); else start();
+                if (document.visibilityState === "hidden") {
+                    stop();
+                } else if (!freezeTarget && pausedAt === null) {
+                    start();
+                }
             });
 
-            // Stop on pagehide (Safari bfcache)
-            addEventListener("pagehide", () => { stop(); }, { once: true });
+            addEventListener("pagehide", () => {
+                stop();
+                teardownListeners();
+            }, { once: true });
 
             start();
             eventBus.emit("faviconHueRotateStepped:running");
         };
 
-        img.onerror = () => devError("Failed to load base favicon.");
+        img.onerror = () => {
+            devError("Failed to load base favicon.");
+            teardownListeners();
+        };
         img.src = baseHref;
     });
 };
