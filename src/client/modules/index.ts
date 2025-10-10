@@ -6,3 +6,7 @@ export { tally } from './tally';
 export { testimonialAvatar } from './testimonialAvatar';
 export { reasonGenerator } from './reasonGenerator';
 export { faviconHueRotateStepped } from './faviconHueRotateStepped';
+export {
+    LottieViewportController,
+    initLottieViewportController,
+} from './lottieViewportController';

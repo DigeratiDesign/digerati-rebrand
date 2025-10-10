@@ -62,6 +62,15 @@ export interface AppEvents {
     "faviconHueRotateStepped:started": void;
     "faviconHueRotateStepped:running": void;
 
+    // Lottie Viewport Controller
+    "lottieViewport:missingElements": { selector: string };
+    "lottieViewport:missingPlayer": void;
+    "lottieViewport:missingSource": { element: HTMLElement; name: string };
+    "lottieViewport:initialized": { count: number; selector: string };
+    "lottieViewport:enter": { name: string; element: HTMLElement };
+    "lottieViewport:exit": { name: string; element: HTMLElement };
+    "lottieViewport:destroyed": { count: number };
+
     // Legal Colour Cycle
     "legalColourCycle:noneFound": { selector: string };
     "legalColourCycle:applied": { count: number; selector: string };
