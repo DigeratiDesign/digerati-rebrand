@@ -1,7 +1,7 @@
 import lottie from "lottie-web";
 
 export function lottieInit() {
-  const containers = document.querySelectorAll<HTMLElement>("[data-lottie]");
+  const containers = document.querySelectorAll<HTMLElement>("[dd-lottie]");
   const now = () => new Date().toISOString().split("T")[1].replace("Z", "");
 
   const isIOS =
@@ -43,10 +43,10 @@ export function lottieInit() {
       console.log(`[${now()}] 🎬 Creating animation for`, container);
       animation = lottie.loadAnimation({
         container,
-        renderer: "svg",
+        renderer: isIOS ? "canvas" : "svg", // 👈 canvas on iOS
         loop: true,
         autoplay: true,
-        path: container.dataset.lottie!,
+        path: container.getAttribute("dd-lottie")!,
       });
 
       animation.addEventListener("loopComplete", () => {
