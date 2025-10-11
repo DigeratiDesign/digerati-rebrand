@@ -53,7 +53,21 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const closeBtn = document.querySelector<HTMLElement>(SELECTORS.close);
     const iframe = document.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
     const preloader = document.querySelector<HTMLElement>(SELECTORS.preloader);
+    // you already have this somewhere near line ~56
     const dots = document.querySelector<HTMLElement>(SELECTORS.dots);
+
+    // 👇 paste only THIS part below that line (no new const)
+    console.log('[Tally] Registering faviconHueRotateStepped event listeners');
+    eventBus.on('faviconHueRotateStepped:locked', ({ hue }) => {
+      console.log('[Tally] received faviconHueRotateStepped:locked', { hue });
+      if (dots) dots.style.opacity = '1';
+    });
+
+    eventBus.on('faviconHueRotateStepped:released', () => {
+      console.log('[Tally] received faviconHueRotateStepped:released');
+      if (dots) dots.style.opacity = '0';
+    });
+
 
     log('Tally found elements', {
       modal: !!modal,

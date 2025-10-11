@@ -1,34 +1,31 @@
+// src/client/modules/lottie.ts
 import lottie from 'lottie-web';
+import { eventBus } from '$digerati/events';
+import { log } from '$digerati/utils/logger';
 
 export function lottieInit() {
   const containers = document.querySelectorAll<HTMLElement>('[dd-lottie]');
   const now = () => new Date().toISOString().split('T')[1].replace('Z', '');
 
+  eventBus.emit('lottie:init', { count: containers.length });
+  log(`[Lottie] Found ${containers.length} elements`);
+
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
 
-  // iOS state
   let activeIOS: ReturnType<typeof lottie.loadAnimation> | null = null;
   let iosToPause: ReturnType<typeof lottie.loadAnimation> | null = null;
 
-  // Desktop/Android: track active animations (max 2)
   const activeDesktop: ReturnType<typeof lottie.loadAnimation>[] = [];
   const desktopToPause: Set<ReturnType<typeof lottie.loadAnimation>> = new Set();
 
   const waitForLayout = (el: HTMLElement, callback: () => void) => {
-    let lastW = 0,
-      lastH = 0,
-      stable = 0;
+    let lastW = 0, lastH = 0, stable = 0;
     const check = () => {
       const { width, height } = el.getBoundingClientRect();
-      if (width && height && width === lastW && height === lastH) {
-        stable++;
-      } else {
-        stable = 0;
-        lastW = width;
-        lastH = height;
-      }
+      if (width && height && width === lastW && height === lastH) stable++;
+      else { stable = 0; lastW = width; lastH = height; }
       if (stable >= 2) callback();
       else requestAnimationFrame(check);
     };
@@ -42,39 +39,43 @@ export function lottieInit() {
 
     const createAnimation = () => {
       if (animation) return;
+      const path = container.getAttribute('dd-lottie')!;
       console.log(`[${now()}] 🎬 Creating animation for`, container);
       const created = lottie.loadAnimation({
         container,
-        renderer: isIOS ? 'canvas' : 'svg', // 👈 canvas on iOS
+        renderer: isIOS ? 'canvas' : 'svg',
         loop: true,
         autoplay: true,
-        path: container.getAttribute('dd-lottie')!,
+        path,
       });
 
       animation = created;
+      eventBus.emit('lottie:created', { element: container, path });
 
       created.addEventListener('loopComplete', () => {
-        // ✅ Handle iOS deferred pause
+        // iOS deferred pause
         if (isIOS && iosToPause === created) {
           console.log(`[${now()}] ⏸️ Pausing previous iOS animation after loop`);
           created.pause();
           iosToPause = null;
+          eventBus.emit('lottie:paused', { element: container });
         }
 
-        // ✅ Handle desktop deferred pause
+        // Desktop deferred pause
         if (!isIOS && desktopToPause.has(created)) {
           console.log(`[${now()}] ⏸️ Pausing old desktop animation after loop`);
           created.pause();
           desktopToPause.delete(created);
           const index = activeDesktop.indexOf(created);
           if (index >= 0) activeDesktop.splice(index, 1);
+          eventBus.emit('lottie:paused', { element: container });
         }
 
+        // Handle deferred destroy
         if (pendingDestroy && !isVisible) {
           created.destroy();
-          if (animation === created) {
-            animation = null;
-          }
+          eventBus.emit('lottie:destroyed', { element: container });
+          if (animation === created) animation = null;
           pendingDestroy = false;
         } else if (pendingDestroy && isVisible) {
           pendingDestroy = false;
@@ -86,7 +87,6 @@ export function lottieInit() {
       if (!animation) return;
       console.log(`[${now()}] ❌ Destroying animation for`, container);
 
-      // Remove from tracking arrays
       if (isIOS && activeIOS === animation) activeIOS = null;
       if (!isIOS) {
         const i = activeDesktop.indexOf(animation);
@@ -95,29 +95,28 @@ export function lottieInit() {
       }
 
       animation.destroy();
+      eventBus.emit('lottie:destroyed', { element: container });
       animation = null;
     };
 
     const handleVisibility = (visible: boolean) => {
       if (visible && !isVisible) {
+        eventBus.emit('lottie:entered', { element: container });
         pendingDestroy = false;
 
         waitForLayout(container, () => {
           createAnimation();
 
-          // ✅ iOS: only one active at a time, previous finishes its loop
+          // iOS: only 1 at a time
           if (isIOS && animation) {
-            if (activeIOS && activeIOS !== animation) {
-              iosToPause = activeIOS;
-            }
+            if (activeIOS && activeIOS !== animation) iosToPause = activeIOS;
             activeIOS = animation;
             animation.play();
             return;
           }
 
-          // ✅ Desktop: max 2 concurrent
+          // Desktop: max 2 concurrent
           if (animation && !isIOS) {
-            // If there are already 2 playing, queue the oldest to pause after loop
             if (activeDesktop.length >= 2) {
               const oldest = activeDesktop[0];
               if (oldest && !desktopToPause.has(oldest)) {
@@ -125,12 +124,12 @@ export function lottieInit() {
                 console.log(`[${now()}] 🎬 Queued oldest desktop animation to pause after loop`);
               }
             }
-            // Add this animation to active list and play
             if (!activeDesktop.includes(animation)) activeDesktop.push(animation);
             animation.play();
           }
         });
       } else if (!visible && isVisible) {
+        eventBus.emit('lottie:exited', { element: container });
         if (animation) pendingDestroy = true;
         else destroyAnimation();
       }
@@ -138,9 +137,7 @@ export function lottieInit() {
     };
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => handleVisibility(entry.isIntersecting));
-      },
+      (entries) => entries.forEach((entry) => handleVisibility(entry.isIntersecting)),
       { threshold: 0.2 }
     );
 

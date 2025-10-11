@@ -122,6 +122,11 @@ export const faviconHueRotateStepped = (): void => {
             log("Hue freeze reached", { target: freezeTarget, current: currentHue });
             paused = true;
             document.documentElement.style.setProperty("--h", `${freezeTarget}deg`);
+
+            // 👇 Add this line
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = null;
+
             eventBus.emit("faviconHueRotateStepped:locked", {
               hue: freezeTarget,
               current: currentHue,
@@ -182,10 +187,23 @@ export const faviconHueRotateStepped = (): void => {
       const onRelease = () => {
         log("Hue rotation released");
         eventBus.emit("faviconHueRotateStepped:released");
+
+        if (paused && freezeTarget != null) {
+          // calculate new origin so cycle resumes smoothly
+          const now = performance.now();
+          const progress = freezeTarget / 360;
+          origin = now - progress * DURATION;
+        }
+
         freezeTarget = null;
         paused = false;
+
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+
         start();
       };
+
 
       const offLock = eventBus.on("tally:accent:lock", onLock);
       const offRelease = eventBus.on("tally:accent:release", onRelease);
