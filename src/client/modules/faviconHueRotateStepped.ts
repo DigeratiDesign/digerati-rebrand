@@ -79,10 +79,16 @@ export const faviconHueRotateStepped = (): void => {
 
         const handleLockEvent = ({ hex }: { hex: string }) => {
             const normalized = normalizeHexColor(hex);
-            if (!normalized) return;
+            if (!normalized) {
+                log("Favicon hue lock received invalid hex", hex);
+                return;
+            }
+            log("Favicon hue lock requested", { raw: hex, normalized });
             if (lockHandler) {
+                log("Favicon hue lock applying immediately", normalized);
                 lockHandler(normalized);
             } else {
+                log("Favicon hue lock queued", normalized);
                 queuedLockHex = normalized;
                 releaseQueued = false;
             }
@@ -90,8 +96,10 @@ export const faviconHueRotateStepped = (): void => {
 
         const handleReleaseEvent = () => {
             if (releaseHandler) {
+                log("Favicon hue release applying immediately");
                 releaseHandler();
             } else {
+                log("Favicon hue release queued");
                 queuedLockHex = null;
                 releaseQueued = true;
             }
@@ -169,6 +177,7 @@ export const faviconHueRotateStepped = (): void => {
 
             const freezeAt = (now: number, target: FreezeTarget) => {
                 const { phase, hue, step } = target;
+                log("Favicon hue rotation freeze reached", { hue, phase, step });
                 origin = now - phase * DURATION;
                 pausedAt = now;
                 document.documentElement.style.setProperty("--h", `${hue}deg`);
@@ -229,9 +238,13 @@ export const faviconHueRotateStepped = (): void => {
                 const normalized = normalizeHexColor(hex);
                 if (!normalized) return;
                 const hue = hexToHue(normalized);
-                if (hue === null) return;
+                if (hue === null) {
+                    log("Favicon hue lock failed to compute hue", normalized);
+                    return;
+                }
                 resumeFromPause();
                 const adjustedHue = normalizeHue(hue);
+                log("Favicon hue rotation locking", { normalized, hue: adjustedHue });
                 freezeTarget = {
                     hue: adjustedHue,
                     phase: hueToPhase(adjustedHue),
@@ -241,6 +254,7 @@ export const faviconHueRotateStepped = (): void => {
             };
 
             const release = () => {
+                log("Favicon hue rotation released");
                 freezeTarget = null;
                 resumeFromPause();
                 start();
@@ -250,10 +264,12 @@ export const faviconHueRotateStepped = (): void => {
             releaseHandler = release;
 
             if (queuedLockHex) {
+                log("Favicon hue rotation processing queued lock", queuedLockHex);
                 lockToHex(queuedLockHex);
                 queuedLockHex = null;
             }
             if (releaseQueued) {
+                log("Favicon hue rotation processing queued release");
                 release();
                 releaseQueued = false;
             }
