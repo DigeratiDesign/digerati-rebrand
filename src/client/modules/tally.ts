@@ -53,10 +53,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const closeBtn = document.querySelector<HTMLElement>(SELECTORS.close);
     const iframe = document.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
     const preloader = document.querySelector<HTMLElement>(SELECTORS.preloader);
-    // you already have this somewhere near line ~56
     const dots = document.querySelector<HTMLElement>(SELECTORS.dots);
 
-    // 👇 paste only THIS part below that line (no new const)
     console.log('[Tally] Registering faviconHueRotateStepped event listeners');
     eventBus.on('faviconHueRotateStepped:locked', ({ hue }) => {
       console.log('[Tally] received faviconHueRotateStepped:locked', { hue });
@@ -67,7 +65,6 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       console.log('[Tally] received faviconHueRotateStepped:released');
       if (dots) dots.style.opacity = '0';
     });
-
 
     log('Tally found elements', {
       modal: !!modal,
@@ -83,7 +80,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       return;
     }
 
-    // State
+    // --- STATE ---
     let previousActiveElement: Element | null = null;
     let overallFallbackTimer: ReturnType<typeof setTimeout> | null = null;
     let fadeOutInProgress = false;
@@ -92,7 +89,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let useDarkPreloaderThisOpen = false;
     let accentLockActive = false;
 
-    // Preloader grid logic
+    // --- PRELOADER GRID LOGIC ---
     const N = 11;
     const modes: Record<string, (r: number, c: number) => number> = {
       topRight: (r, c) => Math.hypot(r, N - 1 - c),
@@ -105,8 +102,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       random: () => Math.random() * N * N,
     };
     const modeNames = Object.keys(modes);
-    const pickRandomMode = () =>
-      modeNames[Math.floor(Math.random() * modeNames.length)];
+    const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
 
     const buildGrid = (container: HTMLElement, mode: string) => {
       container.innerHTML = '';
@@ -185,10 +181,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         preloader.style.display = '';
         preloader.style.opacity = '1';
         preloader.style.transition = 'opacity .4s ease';
-
-        requestAnimationFrame(() => {
-          preloader.style.opacity = '0';
-        });
+        requestAnimationFrame(() => (preloader.style.opacity = '0'));
 
         let localFallback: ReturnType<typeof setTimeout> | null = null;
 
@@ -224,16 +217,9 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const scheduleHideAfterMinDuration = () => {
-      const now = performance.now();
-      const elapsed = now - preloaderShownAt;
+      const elapsed = performance.now() - preloaderShownAt;
       const remaining = Math.max(0, minPreloaderMs - elapsed);
-      if (remaining === 0) {
-        hidePreloaderWithJSFade();
-      } else {
-        setTimeout(() => {
-          hidePreloaderWithJSFade();
-        }, remaining);
-      }
+      remaining === 0 ? hidePreloaderWithJSFade() : setTimeout(hidePreloaderWithJSFade, remaining);
     };
 
     const trapFocus = (e: KeyboardEvent) => {
@@ -257,32 +243,21 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeModal();
-      } else {
-        trapFocus(e);
-      }
+      if (e.key === 'Escape') closeModal();
+      else trapFocus(e);
     };
 
     const openModal = (url: string) => {
       autoGroup('Open Modal', () => {
         eventBus.emit('tally:open', { url });
         showPreloader();
-
-        if (overallFallbackTimer) {
-          clearTimeout(overallFallbackTimer);
-          overallFallbackTimer = null;
-        }
-
+        if (overallFallbackTimer) clearTimeout(overallFallbackTimer);
         loadHandled = false;
 
         const cleanListeners = () => {
           iframe.removeEventListener('load', onLoad);
           iframe.removeEventListener('error', onError);
-          if (overallFallbackTimer) {
-            clearTimeout(overallFallbackTimer);
-            overallFallbackTimer = null;
-          }
+          if (overallFallbackTimer) clearTimeout(overallFallbackTimer);
         };
 
         const onLoad = () => {
@@ -311,7 +286,6 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
             hidePreloaderImmediate();
             eventBus.emit('tally:load:timeout', { url });
           }
-          overallFallbackTimer = null;
         }, 5000);
 
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -323,7 +297,6 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         }
 
         iframe.src = url;
-
         modal.classList.add('is-active');
         document.body.classList.add('no-scroll');
         modal.setAttribute('aria-hidden', 'false');
@@ -342,13 +315,9 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         document.body.classList.remove('no-scroll');
         modal.setAttribute('aria-hidden', 'true');
         iframe.src = '';
-        if (previousActiveElement && (previousActiveElement as HTMLElement).focus) {
+        if (previousActiveElement && (previousActiveElement as HTMLElement).focus)
           (previousActiveElement as HTMLElement).focus();
-        }
-        if (overallFallbackTimer) {
-          clearTimeout(overallFallbackTimer);
-          overallFallbackTimer = null;
-        }
+        if (overallFallbackTimer) clearTimeout(overallFallbackTimer);
         hidePreloaderImmediate();
         document.removeEventListener('keydown', handleKeyDown);
         eventBus.emit('tally:closed');
@@ -371,15 +340,10 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       const accentHex = normalizeHexColor(accentAttr);
 
       if (accentHex) {
-        log('Tally accent lock requested from trigger', {
-          raw: accentAttr,
-          normalized: accentHex,
-        });
+        log('Tally accent lock requested from trigger', { raw: accentAttr, normalized: accentHex });
         eventBus.emit('tally:accent:lock', { hex: accentHex });
         accentLockActive = true;
-      } else if (accentAttr) {
-        warn('Tally accent lock discarded due to invalid hex', accentAttr);
-      }
+      } else if (accentAttr) warn('Tally accent lock discarded due to invalid hex', accentAttr);
 
       if (href) openModal(href);
     };
@@ -387,16 +351,14 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     document.body.addEventListener('click', onBodyClick, true);
     closeBtn.addEventListener('click', closeModal);
 
-    // --- DOTS fade behaviour with debugging ---
+    // --- DOTS fade behaviour ---
     if (dots) {
       log('Tally dots element found; attaching hue event listeners');
-
       eventBus.on('faviconHueRotateStepped:locked', (data) => {
         log('⚡ faviconHueRotateStepped:locked received', data);
         dots.style.transition = 'opacity 0.4s ease';
         dots.style.opacity = '1';
       });
-
       eventBus.on('faviconHueRotateStepped:released', () => {
         log('⚡ faviconHueRotateStepped:released received');
         dots.style.transition = '';
@@ -406,12 +368,43 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       warn('No [dd-tally="dots"] element found — skipping hue listeners');
     }
 
-    // Auto-open if ?formId=...
+    // --- AUTO-OPEN (GET param) ---
     const params = new URLSearchParams(window.location.search);
     const formId = params.get('formId');
+    const accentParam = params.get('accent');
+
     if (formId) {
       const url = `https://tally.so/embed/${encodeURIComponent(formId)}`;
       log('FormId detected, auto-opening:', formId);
+
+      const emitAccentLock = () => {
+        if (accentParam) {
+          const accentHex = normalizeHexColor(`#${accentParam}`);
+          if (accentHex) {
+            log('Accent param detected; emitting tally:accent:lock', accentHex);
+            eventBus.emit('tally:accent:lock', { hex: accentHex });
+            accentLockActive = true;
+          } else warn('Invalid accent param:', accentParam);
+        }
+      };
+
+      let faviconReady = false;
+      const offRunning = eventBus.on('faviconHueRotateStepped:running', () => {
+        faviconReady = true;
+        log('Favicon hue rotate running — lock now');
+        emitAccentLock();
+        offRunning();
+      });
+
+      // Safety timeout
+      setTimeout(() => {
+        if (!faviconReady) {
+          log('Favicon not confirmed ready after delay — emitting anyway');
+          emitAccentLock();
+          offRunning();
+        }
+      }, 1200);
+
       useDarkPreloaderThisOpen = true;
       openModal(url);
     }
