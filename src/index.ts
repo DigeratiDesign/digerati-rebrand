@@ -5,7 +5,7 @@ import type { AppEvents } from '$digerati/events/types';
 import { autoGroup } from '$digerati/utils/logger';
 import * as Core from '$digerati/modules';
 import * as Client from '$client/modules';
-// import { blurMessages } from '$client/constants/blurMessages';
+
 
 initEventDebugLogging();
 
@@ -38,7 +38,6 @@ const PHASES = {
           selector: 'markdown',
           logOutput: true,
         }),
-      Client.initLottieViewportController,
     ],
   },
   webflowReady: {
@@ -54,7 +53,6 @@ const PHASES = {
           hiddenClass: 'navbar-hidden',
           injectCSS: true,
         }),
-      // () => Core.initPageBlurTitle({ messages: blurMessages }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
       Client.faviconHueRotateStepped,
     ],
@@ -67,7 +65,9 @@ const PHASES = {
   ix2Ready: {
     readyFn: ix2Ready,
     event: 'core:ix2Ready',
-    tasks: [],
+    tasks: [
+      Client.lottieInit,
+    ],
   },
 } satisfies Record<string, Phase>;
 

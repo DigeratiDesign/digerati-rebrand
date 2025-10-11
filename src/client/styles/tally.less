@@ -1,5 +1,14 @@
 // src/client/styles/components/_tally-modal.less
 
+
+.tally-modal_fullscreen::after {
+    display: none;
+}
+
+.tally-modal_fullscreen .fs-cc_close-button {
+    display: none;
+}
+
 // Tally modal “fullscreen” pseudo‐element
 .tally-modal_fullscreen {
     &::after {
@@ -34,7 +43,7 @@
 .tally-modal_overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.95);
+    background: #2a2722;
     z-index: 900;
     opacity: 1;
     transition: opacity 0.4s ease 1.5s;
@@ -43,11 +52,11 @@
 // Preloader base styles
 .tally-modal_preloader {
     --bg: #fff;
-    --front: #000;
-    --disc-front: #000;
+    --front: #050505;
+    --disc-front: #050505;
 
     &.dark-mode {
-        --bg: #000;
+        --bg: #2a2722;
         --disc-front: #fff;
         background: var(--bg);
 
@@ -58,3 +67,11 @@
 }
 
 // Removed the @keyframes fadeOut block entirely, since fading is handled in JS.
+
+.tally-modal_fullscreen::after {
+    display: none;
+}
+
+.tally-modal_fullscreen .fs-cc_close-button {
+    display: none;
+}

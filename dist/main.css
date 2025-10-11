@@ -99,6 +99,26 @@
     transform: translate(var(--hx), var(--vy)) scale(.15);
   }
 }
+[data-lottie] {
+  width: 100%;
+  height: 100%;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+[data-lottie] svg {
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.table-wrapper {
+  position: relative;
+  z-index: 1;
+  margin: var(--_ui-styles---stroke--glow-width);
+  border-radius: 20px;
+}
 table.responsive-table {
   font-size: .9375rem;
   border-radius: var(--_ui-styles---radius--table-border-radius);
@@ -155,6 +175,37 @@ table.responsive-table td {
   border-radius: 100%;
   background-color: lime;
 }
+@media screen and (min-width:992px) and (max-width:1308px) {
+  .home_solutions-grid,
+  .home_persuasion-grid {
+    grid-template-rows: auto auto auto;
+    grid-template-columns: 1fr;
+  }
+}
+@media screen and (max-width:1308px) {
+  .home_solutions-grid .card_copy,
+  .home_persuasion-grid .card_copy {
+    max-width: 35ch;
+  }
+  .home_solutions-grid .card_heading,
+  .home_persuasion-grid .card_heading {
+    max-width: 20ch;
+  }
+}
+@media screen and (min-width:480px) and (max-width:800px) {
+  .case-study_header-grid {
+    grid-column-gap: 0rem;
+    grid-row-gap: 0rem;
+    grid-template-rows: auto auto;
+    grid-template-columns: 2fr;
+    justify-items: start;
+    width: 100%;
+  }
+  .case-study_header-grid .case-study_content-item.is-see-live {
+    justify-self: start !important;
+    margin-bottom: 0;
+  }
+}
 .fade-ltr {
   --fade-dir:to right;
 }
@@ -174,6 +225,12 @@ table.responsive-table td {
   to {
     transform: translateX(-100%);
   }
+}
+.tally-modal_fullscreen::after {
+  display: none;
+}
+.tally-modal_fullscreen .fs-cc_close-button {
+  display: none;
 }
 .tally-modal_fullscreen::after {
   content: "";
@@ -197,23 +254,29 @@ table.responsive-table td {
 .tally-modal_overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.95);
+  background: #2a2722;
   z-index: 900;
   opacity: 1;
   transition: opacity .4s ease 1.5s;
 }
 .tally-modal_preloader {
   --bg:#fff;
-  --front:#000;
-  --disc-front:#000;
+  --front:#050505;
+  --disc-front:#050505;
 }
 .tally-modal_preloader.dark-mode {
-  --bg:#000;
+  --bg:#2a2722;
   --disc-front:#fff;
   background: var(--bg);
 }
 .tally-modal_preloader.dark-mode .cell::after {
   background: var(--disc-front);
+}
+.tally-modal_fullscreen::after {
+  display: none;
+}
+.tally-modal_fullscreen .fs-cc_close-button {
+  display: none;
 }
 img.testimonial_half-tone {
   visibility: hidden;
