@@ -1,40 +1,40 @@
 // src/digerati/styles/components/_responsive-table.less
-@import "./_breakpoints.less";
+@import './_breakpoints.less';
 
 // tuneables
 @label-col-width: 10.5rem;
 @cell-x: 0.75rem;
 
 .table-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-x: contain;
-    max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
 
-    // Base table styles
-    table {
-        &.responsive-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 1px;
-            background-color: transparent;
-            overflow: hidden;
+  // Base table styles
+  table {
+    &.responsive-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 1px;
+      background-color: transparent;
+      overflow: hidden;
 
-            th {
-                padding: 1rem @cell-x;
-                text-align: left;
-            }
+      th {
+        padding: 1rem @cell-x;
+        text-align: left;
+      }
 
-            td {
-                border: 1px solid transparent;
-                padding: @cell-x;
-                text-align: left;
-                vertical-align: top;
-            }
+      td {
+        border: 1px solid transparent;
+        padding: @cell-x;
+        text-align: left;
+        vertical-align: top;
+      }
 
-            // Mobile responsive (≤767px)
-            .untilLandscape({
+      // Mobile responsive (≤767px)
+      .untilLandscape({
                 thead {
                     display: none;
                 }
@@ -80,5 +80,5 @@
                 background-color: transparent;
             });
     }
-}
+  }
 }

@@ -17,16 +17,16 @@ let domReadyFired = document.readyState === 'interactive' || document.readyState
 
 // Internal runner for DOM ready callbacks
 function runDomReady() {
-    domReadyCallbacks.forEach(fn => fn());
-    domReadyCallbacks.length = 0;
+  domReadyCallbacks.forEach((fn) => fn());
+  domReadyCallbacks.length = 0;
 }
 
 // Listen to DOMContentLoaded if it hasn't fired yet
 if (!domReadyFired) {
-    document.addEventListener('DOMContentLoaded', () => {
-        domReadyFired = true;
-        runDomReady();
-    });
+  document.addEventListener('DOMContentLoaded', () => {
+    domReadyFired = true;
+    runDomReady();
+  });
 }
 
 /**
@@ -34,20 +34,19 @@ if (!domReadyFired) {
  * If the event has already fired, the callback is invoked immediately.
  */
 export function domReady(fn: Callback): void {
-    if (domReadyFired) fn();
-    else domReadyCallbacks.push(fn);
+  if (domReadyFired) fn();
+  else domReadyCallbacks.push(fn);
 }
-
 
 /** ------------------ WEBFLOW READY ------------------ */
 // Extend Window interface for Webflow integration
 declare global {
-    interface Window {
-        Webflow?: {
-            push: (fn: Callback) => void;
-            require?: (module: string) => any;
-        } & Callback[];
-    }
+  interface Window {
+    Webflow?: {
+      push: (fn: Callback) => void;
+      require?: (module: string) => any;
+    } & Callback[];
+  }
 }
 
 /**
@@ -55,14 +54,13 @@ declare global {
  * Functions are pushed onto window.Webflow, which executes them immediately if Webflow has loaded.
  */
 export function webflowReady(fn: Callback): void {
-    // Ensure the Webflow queue exists
-    if (!window.Webflow) {
-        window.Webflow = [] as unknown as NonNullable<typeof window.Webflow>;
-    }
-    // Push the callback into the Webflow queue
-    window.Webflow.push(fn);
+  // Ensure the Webflow queue exists
+  if (!window.Webflow) {
+    window.Webflow = [] as unknown as NonNullable<typeof window.Webflow>;
+  }
+  // Push the callback into the Webflow queue
+  window.Webflow.push(fn);
 }
-
 
 /** ------------------ IX2 / GSAP READY ------------------ */
 // Queue of callbacks for IX2 readiness
@@ -72,21 +70,21 @@ let ix2ReadyFired = false;
 
 // After Webflow is ready, poll for the IX2 module
 webflowReady(() => {
-    const checkIx2 = () => {
-        try {
-            const ix2 = window.Webflow && window.Webflow.require && window.Webflow.require('ix2');
-            if (ix2) {
-                ix2ReadyFired = true;
-                ix2Callbacks.forEach(fn => fn());
-                ix2Callbacks.length = 0;
-            } else {
-                setTimeout(checkIx2, 50);
-            }
-        } catch {
-            setTimeout(checkIx2, 50);
-        }
-    };
-    checkIx2();
+  const checkIx2 = () => {
+    try {
+      const ix2 = window.Webflow && window.Webflow.require && window.Webflow.require('ix2');
+      if (ix2) {
+        ix2ReadyFired = true;
+        ix2Callbacks.forEach((fn) => fn());
+        ix2Callbacks.length = 0;
+      } else {
+        setTimeout(checkIx2, 50);
+      }
+    } catch {
+      setTimeout(checkIx2, 50);
+    }
+  };
+  checkIx2();
 });
 
 /**
@@ -94,10 +92,9 @@ webflowReady(() => {
  * Polls window.Webflow.require('ix2') and invokes callbacks once available.
  */
 export function ix2Ready(fn: Callback): void {
-    if (ix2ReadyFired) fn();
-    else ix2Callbacks.push(fn);
+  if (ix2ReadyFired) fn();
+  else ix2Callbacks.push(fn);
 }
-
 
 /** ------------------ FONT READY ------------------ */
 // Queue of callbacks for document.fonts.ready
@@ -107,11 +104,11 @@ let fontReadyFired = false;
 
 // Listen for the document.fonts.ready promise
 if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-        fontReadyFired = true;
-        fontCallbacks.forEach(fn => fn());
-        fontCallbacks.length = 0;
-    });
+  document.fonts.ready.then(() => {
+    fontReadyFired = true;
+    fontCallbacks.forEach((fn) => fn());
+    fontCallbacks.length = 0;
+  });
 }
 
 /**
@@ -119,6 +116,6 @@ if (document.fonts && document.fonts.ready) {
  * If fonts.ready has already resolved, the callback is invoked immediately.
  */
 export function fontReady(fn: Callback): void {
-    if (fontReadyFired) fn();
-    else fontCallbacks.push(fn);
+  if (fontReadyFired) fn();
+  else fontCallbacks.push(fn);
 }

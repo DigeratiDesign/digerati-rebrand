@@ -14,90 +14,90 @@
  * @author <cabal@digerati.design>
  */
 
-import { autoGroup, log, warn } from "$digerati/utils/logger";
-import { eventBus } from "$digerati/events";
+import { eventBus } from '$digerati/events';
+import { autoGroup, log, warn } from '$digerati/utils/logger';
 
 export interface WidowControlOptions {
-    selector?: string;         // default 'p, h1, h2, h3, h4, h5, h6'
-    skipSelectors?: string[];  // e.g. ['[aria-hidden="true"]', '.no-widow']
-    nowrapCount?: number;      // keep last N words together; default 2 (min 2)
-    markAttr?: string;         // attribute set after processing; default 'data-dd-widow'
-    debug?: boolean;           // when true, logs per-element skip decisions
+  selector?: string; // default 'p, h1, h2, h3, h4, h5, h6'
+  skipSelectors?: string[]; // e.g. ['[aria-hidden="true"]', '.no-widow']
+  nowrapCount?: number; // keep last N words together; default 2 (min 2)
+  markAttr?: string; // attribute set after processing; default 'data-dd-widow'
+  debug?: boolean; // when true, logs per-element skip decisions
 }
 
 export const widowControl = (opts: WidowControlOptions = {}) => {
-    autoGroup("Widow Control", () => {
-        const selector = opts.selector ?? "p, h1, h2, h3, h4, h5, h6";
-        const skipSelectors = opts.skipSelectors ?? ['[aria-hidden="true"]', '.no-widow'];
-        const nowrapCount = Math.max(2, opts.nowrapCount ?? 2);
-        const markAttr = opts.markAttr ?? "data-dd-widow";
-        const debug = !!opts.debug;
+  autoGroup('Widow Control', () => {
+    const selector = opts.selector ?? 'p, h1, h2, h3, h4, h5, h6';
+    const skipSelectors = opts.skipSelectors ?? ['[aria-hidden="true"]', '.no-widow'];
+    const nowrapCount = Math.max(2, opts.nowrapCount ?? 2);
+    const markAttr = opts.markAttr ?? 'data-dd-widow';
+    const debug = !!opts.debug;
 
-        // Build robust skip list: match element and any descendants
-        const skipList = skipSelectors.length
-            ? skipSelectors.flatMap(s => [s, `${s} *`]).join(",")
-            : "";
+    // Build robust skip list: match element and any descendants
+    const skipList = skipSelectors.length
+      ? skipSelectors.flatMap((s) => [s, `${s} *`]).join(',')
+      : '';
 
-        const targets = Array.from(document.querySelectorAll<HTMLElement>(selector));
-        if (targets.length === 0) {
-            warn(`No targets found for selector "${selector}".`);
-            eventBus.emit("widow:empty", { selector });
-            return;
-        }
+    const targets = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    if (targets.length === 0) {
+      warn(`No targets found for selector "${selector}".`);
+      eventBus.emit('widow:empty', { selector });
+      return;
+    }
 
-        log(`Processing ${targets.length} elements (nowrapCount=${nowrapCount}).`);
-        if (debug) {
-            targets.forEach((el) =>
-                log("widow:debug-scan", {
-                    tag: el.tagName,
-                    className: (el as HTMLElement).className,
-                    matchesSkip: skipList ? el.matches(skipList) : false,
-                    closestSkip: skipSelectors.length ? !!el.closest(skipSelectors.join(",")) : false,
-                })
-            );
-        }
+    log(`Processing ${targets.length} elements (nowrapCount=${nowrapCount}).`);
+    if (debug) {
+      targets.forEach((el) =>
+        log('widow:debug-scan', {
+          tag: el.tagName,
+          className: (el as HTMLElement).className,
+          matchesSkip: skipList ? el.matches(skipList) : false,
+          closestSkip: skipSelectors.length ? !!el.closest(skipSelectors.join(',')) : false,
+        })
+      );
+    }
 
-        targets.forEach((el) => {
-            // 1) Respect skip selectors first (element itself, any descendant, or if element is inside a skipped ancestor)
-            const shouldSkip =
-                (skipList && el.matches(skipList)) ||
-                (skipSelectors.length && !!el.closest(skipSelectors.join(",")));
+    targets.forEach((el) => {
+      // 1) Respect skip selectors first (element itself, any descendant, or if element is inside a skipped ancestor)
+      const shouldSkip =
+        (skipList && el.matches(skipList)) ||
+        (skipSelectors.length && !!el.closest(skipSelectors.join(',')));
 
-            if (shouldSkip) {
-                if (el.getAttribute(markAttr) === "fixed") revertWidow(el); // undo earlier fixes if re-running
-                el.setAttribute(markAttr, "skipped");
-                eventBus.emit("widow:skipped", { el, reason: "skipSelector" });
-                if (debug) log("widow:debug-skip", { el, reason: "skipSelector" });
-                return;
-            }
+      if (shouldSkip) {
+        if (el.getAttribute(markAttr) === 'fixed') revertWidow(el); // undo earlier fixes if re-running
+        el.setAttribute(markAttr, 'skipped');
+        eventBus.emit('widow:skipped', { el, reason: 'skipSelector' });
+        if (debug) log('widow:debug-skip', { el, reason: 'skipSelector' });
+        return;
+      }
 
-            // 2) Then bail if already processed
-            if (el.hasAttribute(markAttr)) return;
+      // 2) Then bail if already processed
+      if (el.hasAttribute(markAttr)) return;
 
-            const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
-            const wordCount = text ? text.split(" ").filter(Boolean).length : 0;
+      const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+      const wordCount = text ? text.split(' ').filter(Boolean).length : 0;
 
-            if (wordCount < nowrapCount) {
-                el.setAttribute(markAttr, "skipped-too-few-words");
-                eventBus.emit("widow:skipped", { el, reason: "tooFewWords" });
-                if (debug) log("widow:debug-skip", { el, reason: "tooFewWords" });
-                return;
-            }
+      if (wordCount < nowrapCount) {
+        el.setAttribute(markAttr, 'skipped-too-few-words');
+        eventBus.emit('widow:skipped', { el, reason: 'tooFewWords' });
+        if (debug) log('widow:debug-skip', { el, reason: 'tooFewWords' });
+        return;
+      }
 
-            const fixed = keepLastNWordsTogether(el, nowrapCount);
-            if (fixed) {
-                el.setAttribute(markAttr, "fixed");
-                eventBus.emit("widow:fixed", { el, nowrapCount });
-                if (debug) log("widow:debug-fixed", { el, nowrapCount });
-            } else {
-                el.setAttribute(markAttr, "noop");
-                eventBus.emit("widow:noop", { el });
-                if (debug) log("widow:debug-noop", { el });
-            }
-        });
-
-        log("Widow Control complete.");
+      const fixed = keepLastNWordsTogether(el, nowrapCount);
+      if (fixed) {
+        el.setAttribute(markAttr, 'fixed');
+        eventBus.emit('widow:fixed', { el, nowrapCount });
+        if (debug) log('widow:debug-fixed', { el, nowrapCount });
+      } else {
+        el.setAttribute(markAttr, 'noop');
+        eventBus.emit('widow:noop', { el });
+        if (debug) log('widow:debug-noop', { el });
+      }
     });
+
+    log('Widow Control complete.');
+  });
 };
 
 /**
@@ -105,27 +105,27 @@ export const widowControl = (opts: WidowControlOptions = {}) => {
  * with NBSPs by mutating the correct Text nodes.
  */
 function keepLastNWordsTogether(root: HTMLElement, n: number): boolean {
-    const flat = (root.textContent ?? "").replace(/\s+/g, " ").replace(/\s+$/g, "");
-    if (!flat) return false;
+  const flat = (root.textContent ?? '').replace(/\s+/g, ' ').replace(/\s+$/g, '');
+  if (!flat) return false;
 
-    const need = n - 1;
-    const spacePositions: number[] = [];
-    let idx = flat.length;
+  const need = n - 1;
+  const spacePositions: number[] = [];
+  let idx = flat.length;
 
-    while (spacePositions.length < need) {
-        idx = flat.lastIndexOf(" ", idx - 1);
-        if (idx === -1) break;
-        spacePositions.push(idx);
-    }
+  while (spacePositions.length < need) {
+    idx = flat.lastIndexOf(' ', idx - 1);
+    if (idx === -1) break;
+    spacePositions.push(idx);
+  }
 
-    if (spacePositions.length < need) return false;
+  if (spacePositions.length < need) return false;
 
-    // Replace from end to start to avoid index drift
-    const NBSP = "\u00A0";
-    for (const globalPos of spacePositions) {
-        if (!replaceSpaceAt(root, globalPos, NBSP)) return false;
-    }
-    return true;
+  // Replace from end to start to avoid index drift
+  const NBSP = '\u00A0';
+  for (const globalPos of spacePositions) {
+    if (!replaceSpaceAt(root, globalPos, NBSP)) return false;
+  }
+  return true;
 }
 
 /**
@@ -133,28 +133,29 @@ function keepLastNWordsTogether(root: HTMLElement, n: number): boolean {
  * the single space character there with the provided replacement.
  */
 function replaceSpaceAt(root: HTMLElement, globalIndex: number, replacement: string): boolean {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-        acceptNode: (node) => (/\S/.test(node.nodeValue ?? "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
-    });
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) =>
+      /\S/.test(node.nodeValue ?? '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+  });
 
-    let offset = 0;
-    let node = walker.nextNode() as Text | null;
+  let offset = 0;
+  let node = walker.nextNode() as Text | null;
 
-    while (node) {
-        const val = node.nodeValue ?? "";
-        const len = val.length;
+  while (node) {
+    const val = node.nodeValue ?? '';
+    const len = val.length;
 
-        if (globalIndex >= offset && globalIndex < offset + len) {
-            const local = globalIndex - offset;
-            if (val.charAt(local) !== " ") return false; // sanity check
-            node.nodeValue = val.slice(0, local) + replacement + val.slice(local + 1);
-            return true;
-        }
-
-        offset += len;
-        node = walker.nextNode() as Text | null;
+    if (globalIndex >= offset && globalIndex < offset + len) {
+      const local = globalIndex - offset;
+      if (val.charAt(local) !== ' ') return false; // sanity check
+      node.nodeValue = val.slice(0, local) + replacement + val.slice(local + 1);
+      return true;
     }
-    return false;
+
+    offset += len;
+    node = walker.nextNode() as Text | null;
+  }
+  return false;
 }
 
 /**
@@ -162,19 +163,19 @@ function replaceSpaceAt(root: HTMLElement, globalIndex: number, replacement: str
  * Allows toggling a skip class and re-running the module.
  */
 function revertWidow(root: HTMLElement): boolean {
-    const NBSP = "\u00A0";
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let changed = false;
-    let n = walker.nextNode() as Text | null;
-    while (n) {
-        const v = n.nodeValue ?? "";
-        if (v.includes(NBSP)) {
-            n.nodeValue = v.replace(/\u00A0/g, " ");
-            changed = true;
-        }
-        n = walker.nextNode() as Text | null;
+  const NBSP = '\u00A0';
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let changed = false;
+  let n = walker.nextNode() as Text | null;
+  while (n) {
+    const v = n.nodeValue ?? '';
+    if (v.includes(NBSP)) {
+      n.nodeValue = v.replace(/\u00A0/g, ' ');
+      changed = true;
     }
-    return changed;
+    n = walker.nextNode() as Text | null;
+  }
+  return changed;
 }
 
 // Example usage:

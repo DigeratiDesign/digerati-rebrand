@@ -1,32 +1,32 @@
 // src/digerati/styles/components/responsive-table.less
 
-@import "../../digerati/styles/_breakpoints.less";
+@import '../../digerati/styles/_breakpoints.less';
 
 // Base table styles
 .table-wrapper {
-    position: relative;
-    z-index: 1;
-    margin: var(--_ui-styles---stroke--glow-width);
-    border-radius: 20px;
+  position: relative;
+  z-index: 1;
+  margin: var(--_ui-styles---stroke--glow-width);
+  border-radius: 20px;
 }
 
 table {
-    &.responsive-table {
-        font-size: 0.9375rem;
-        border-radius: var(--_ui-styles---radius--table-border-radius);
+  &.responsive-table {
+    font-size: 0.9375rem;
+    border-radius: var(--_ui-styles---radius--table-border-radius);
 
-        th {
-            font-weight: bold;
-            background-color: var(--color-scheme-1--foreground);
-            color: var(--color-scheme-1--text);
-        }
+    th {
+      font-weight: bold;
+      background-color: var(--color-scheme-1--foreground);
+      color: var(--color-scheme-1--text);
+    }
 
-        td {
-            background-color: var(--color-scheme-1--background);
-        }
+    td {
+      background-color: var(--color-scheme-1--background);
+    }
 
-        // Mobile responsive (≤767px)
-        .untilLandscape({
+    // Mobile responsive (≤767px)
+    .untilLandscape({
 
             tbody, tr, td {
                 font-size: 0.875rem;
@@ -48,5 +48,5 @@ table {
             // Re-apply table separation for mobile
             background-color: transparent;
         });
-}
+  }
 }

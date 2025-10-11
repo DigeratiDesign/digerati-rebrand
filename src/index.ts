@@ -1,11 +1,10 @@
 // src/index.ts
-import { domReady, webflowReady, ix2Ready, fontReady } from '$digerati/register';
+import * as Client from '$client/modules';
 import { eventBus, initEventDebugLogging } from '$digerati/events';
 import type { AppEvents } from '$digerati/events/types';
-import { autoGroup } from '$digerati/utils/logger';
 import * as Core from '$digerati/modules';
-import * as Client from '$client/modules';
-
+import { domReady, fontReady, ix2Ready, webflowReady } from '$digerati/register';
+import { autoGroup } from '$digerati/utils/logger';
 
 initEventDebugLogging();
 
@@ -60,14 +59,12 @@ const PHASES = {
   fontReady: {
     readyFn: fontReady,
     event: 'core:fontReady',
-    tasks: []
+    tasks: [],
   },
   ix2Ready: {
     readyFn: ix2Ready,
     event: 'core:ix2Ready',
-    tasks: [
-      Client.lottieInit,
-    ],
+    tasks: [Client.lottieInit],
   },
 } satisfies Record<string, Phase>;
 
@@ -77,7 +74,7 @@ Object.values(PHASES).forEach(({ readyFn, event, tasks = [] }) => {
       eventBus.emit(event);
       tasks.forEach((fn, i) => {
         try {
-          if (typeof fn === "function") {
+          if (typeof fn === 'function') {
             fn();
           } else {
             console.warn(`[${event}] skipped non-function task at index ${i}:`, fn);

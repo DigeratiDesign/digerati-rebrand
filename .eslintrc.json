@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/eslintrc",
+  "extends": ["@finsweet"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "no-console": "off",
+    "no-plusplus": "off",
+    "prefer-destructuring": "off",
+    "simple-import-sort/imports": "off",
+    "simple-import-sort/exports": "off"
+  }
+}
