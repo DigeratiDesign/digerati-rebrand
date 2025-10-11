@@ -32,31 +32,37 @@ export const hexToRgb = (hex: string): { r: number; g: number; b: number } | nul
   return { r, g, b };
 };
 
-/** Convert a hex colour to its hue angle in degrees (0-360). */
-export const hexToHue = (hex: string): number | null => {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return null;
-  const r = rgb.r / 255;
-  const g = rgb.g / 255;
-  const b = rgb.b / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
+/**
+ * Convert RGB components (0-255) to a hue angle in degrees.
+ * Returns null for grayscale/achromatic colours where hue is undefined.
+ */
+export const rgbToHue = (r: number, g: number, b: number): number | null => {
+  const nr = r / 255;
+  const ng = g / 255;
+  const nb = b / 255;
+  const max = Math.max(nr, ng, nb);
+  const min = Math.min(nr, ng, nb);
   const delta = max - min;
-  if (delta === 0) return 0; // grayscale -> treat as 0deg
+  if (delta === 0) return null;
   let hue: number;
-  switch (max) {
-    case r:
-      hue = ((g - b) / delta) % 6;
-      break;
-    case g:
-      hue = (b - r) / delta + 2;
-      break;
-    default:
-      hue = (r - g) / delta + 4;
+  if (max === nr) {
+    hue = ((ng - nb) / delta) % 6;
+  } else if (max === ng) {
+    hue = (nb - nr) / delta + 2;
+  } else {
+    hue = (nr - ng) / delta + 4;
   }
   hue *= 60;
   if (hue < 0) hue += 360;
   return hue;
+};
+
+/** Convert a hex colour to its hue angle in degrees (0-360). */
+export const hexToHue = (hex: string): number | null => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const hue = rgbToHue(rgb.r, rgb.g, rgb.b);
+  return hue ?? 0; // grayscale -> treat as 0deg
 };
 
 /** Smallest absolute distance between two hue angles. */
