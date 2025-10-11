@@ -193,8 +193,8 @@ export const faviconHueRotateStepped = (): void => {
             };
 
             const freezeAt = (now: number, target: FreezeTarget) => {
-                const { phase, rotation, step, target: targetHue } = target;
-                log("Favicon hue rotation freeze reached", { rotation, targetHue, phase, step });
+                const { phase, hue, step } = target;
+                log("Favicon hue rotation freeze reached", { hue, phase, step });
                 origin = now - phase * DURATION;
                 pausedAt = now;
                 document.documentElement.style.setProperty("--h", `${rotation}deg`);
@@ -260,15 +260,8 @@ export const faviconHueRotateStepped = (): void => {
                     return;
                 }
                 resumeFromPause();
-                const targetHue = normalizeHue(hue);
-                const base = baseHueMeasured ? baseHue : 0;
-                const rotation = normalizeHue(targetHue - base);
-                log("Favicon hue rotation locking", {
-                    normalized,
-                    targetHue,
-                    baseHue: baseHueMeasured ? baseHue : "assumed-0",
-                    rotation,
-                });
+                const adjustedHue = normalizeHue(hue);
+                log("Favicon hue rotation locking", { normalized, hue: adjustedHue });
                 freezeTarget = {
                     rotation,
                     target: targetHue,
