@@ -1,11 +1,18 @@
 // src/digerati/events/index.ts
 
-import { EventBus } from '$digerati/utils/eventBus';
-import { autoGroup, log } from '$digerati/utils/logger';
+import { EventBus } from "$digerati/utils/eventBus";
+import { autoGroup, log } from "$digerati/utils/logger";
+import type { AppEvents } from "./types";
 
-import type { AppEvents } from './types';
+declare global {
+  interface Window {
+    __D_EVENT_BUS?: EventBus<AppEvents>;
+  }
+}
 
-export const eventBus = new EventBus<AppEvents>();
+// ✅ Use or create a single global instance
+export const eventBus: EventBus<AppEvents> =
+  (window.__D_EVENT_BUS = window.__D_EVENT_BUS || new EventBus<AppEvents>());
 
 /**
  * Optional helper to wire up core and common events into grouped debug logs.

@@ -1,5 +1,3 @@
-// src/client/modules/tally.ts
-
 /**
  * Tally
  *
@@ -8,12 +6,19 @@
  *
  * Emits structured events and logs for observability.
  *
+ * Accent lock events still emit for hue control,
+ * but preloader visuals remain neutral (no accent applied).
+ *
+ * Also fades in [dd-tally="dots"] once the favicon hue lock is reached,
+ * and resets opacity when released.
+ *
+ * Includes verbose logging for debugging hue event flow.
+ *
  * @author <cabal@digerati.design>
  */
 import { eventBus } from '$digerati/events';
 import {
   autoGroup,
-  devError,
   error as logError,
   log,
   time,
@@ -29,6 +34,7 @@ const SELECTORS = {
   iframe: '[dd-tally="iframe"]',
   preloader: '[dd-tally="preloader"]',
   trigger: '[dd-tally="open"]',
+  dots: '[dd-tally="dots"]',
 };
 
 interface TallyHandles {
@@ -38,8 +44,8 @@ interface TallyHandles {
 
 export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
   let handles: TallyHandles = {
-    openModal: (_: string) => {},
-    closeModal: () => {},
+    openModal: (_: string) => { },
+    closeModal: () => { },
   };
 
   autoGroup('Tally Init', () => {
@@ -47,6 +53,15 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const closeBtn = document.querySelector<HTMLElement>(SELECTORS.close);
     const iframe = document.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
     const preloader = document.querySelector<HTMLElement>(SELECTORS.preloader);
+    const dots = document.querySelector<HTMLElement>(SELECTORS.dots);
+
+    log('Tally found elements', {
+      modal: !!modal,
+      closeBtn: !!closeBtn,
+      iframe: !!iframe,
+      preloader: !!preloader,
+      dots: !!dots,
+    });
 
     if (!modal || !closeBtn || !iframe || !preloader) {
       logError('Missing required DOM elements; aborting tally initialization.');
@@ -61,31 +76,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let loadHandled = false;
     let preloaderShownAt = 0;
     let useDarkPreloaderThisOpen = false;
-    let currentAccentHex: string | null = null;
     let accentLockActive = false;
-
-    const applyAccentToPreloader = () => {
-      const props = ['--front', '--accent', '--disc-front'];
-      if (currentAccentHex) {
-        props.forEach((prop) => {
-          preloader.style.setProperty(prop, currentAccentHex);
-        });
-      } else {
-        props.forEach((prop) => {
-          preloader.style.removeProperty(prop);
-        });
-      }
-    };
-
-    const setAccentHex = (value: string | null) => {
-      currentAccentHex = value;
-      if (value) {
-        log('Tally preloader accent set', value);
-      } else {
-        log('Tally preloader accent cleared');
-      }
-      applyAccentToPreloader();
-    };
 
     // Preloader grid logic
     const N = 11;
@@ -100,7 +91,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       random: () => Math.random() * N * N,
     };
     const modeNames = Object.keys(modes);
-    const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
+    const pickRandomMode = () =>
+      modeNames[Math.floor(Math.random() * modeNames.length)];
 
     const buildGrid = (container: HTMLElement, mode: string) => {
       container.innerHTML = '';
@@ -149,10 +141,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         buildGrid(preloader, mode);
         timeEnd('preloader:build');
 
-        // reset per-open override
         useDarkPreloaderThisOpen = false;
-
-        applyAccentToPreloader();
 
         eventBus.emit('tally:preloader:show', { mode });
       });
@@ -311,19 +300,13 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           overallFallbackTimer = null;
         }, 5000);
 
-        // --- Safari first-load redirect bug workaround ---
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         if (isSafari) {
           log('🐞 [Safari] Pre-warming embed URL to prevent cached /r/ redirect:', url);
           fetch(url, { mode: 'no-cors', cache: 'reload' })
-            .then(() => {
-              log('✅ [Safari] Pre-warm fetch completed for', url);
-            })
-            .catch((err) => {
-              warn('⚠️ [Safari] Pre-warm fetch failed:', err);
-            });
+            .then(() => log('✅ [Safari] Pre-warm fetch completed for', url))
+            .catch((err) => warn('⚠️ [Safari] Pre-warm fetch failed:', err));
         }
-        // --- end Safari patch ---
 
         iframe.src = url;
 
@@ -331,9 +314,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         document.body.classList.add('no-scroll');
         modal.setAttribute('aria-hidden', 'false');
         previousActiveElement = document.activeElement;
-        setTimeout(() => {
-          closeBtn.focus();
-        }, 50);
+        setTimeout(() => closeBtn.focus(), 50);
         document.addEventListener('keydown', handleKeyDown);
         eventBus.emit('tally:opened', { url });
       });
@@ -362,7 +343,6 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           eventBus.emit('tally:accent:release');
           accentLockActive = false;
         }
-        setAccentHex(null);
       });
     };
 
@@ -371,27 +351,48 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       const link = target.closest<HTMLElement>(SELECTORS.trigger);
       if (!link) return;
       e.preventDefault();
+
       const href = (link as HTMLAnchorElement).getAttribute('href') || '';
       const accentAttr = link.getAttribute('dd-tally-accent');
       const accentHex = normalizeHexColor(accentAttr);
+
       if (accentHex) {
-        log('Tally accent lock requested from trigger', { raw: accentAttr, normalized: accentHex });
-        setAccentHex(accentHex);
+        log('Tally accent lock requested from trigger', {
+          raw: accentAttr,
+          normalized: accentHex,
+        });
         eventBus.emit('tally:accent:lock', { hex: accentHex });
         accentLockActive = true;
-      } else {
-        if (accentAttr) {
-          warn('Tally accent lock discarded due to invalid hex', accentAttr);
-        }
-        setAccentHex(null);
+      } else if (accentAttr) {
+        warn('Tally accent lock discarded due to invalid hex', accentAttr);
       }
+
       if (href) openModal(href);
     };
 
     document.body.addEventListener('click', onBodyClick, true);
     closeBtn.addEventListener('click', closeModal);
 
-    // auto-open if ?formId=... present and use dark variant for that first open
+    // --- DOTS fade behaviour with debugging ---
+    if (dots) {
+      log('Tally dots element found; attaching hue event listeners');
+
+      eventBus.on('faviconHueRotateStepped:locked', (data) => {
+        log('⚡ faviconHueRotateStepped:locked received', data);
+        dots.style.transition = 'opacity 0.4s ease';
+        dots.style.opacity = '1';
+      });
+
+      eventBus.on('faviconHueRotateStepped:released', () => {
+        log('⚡ faviconHueRotateStepped:released received');
+        dots.style.transition = '';
+        dots.style.opacity = '0';
+      });
+    } else {
+      warn('No [dd-tally="dots"] element found — skipping hue listeners');
+    }
+
+    // Auto-open if ?formId=...
     const params = new URLSearchParams(window.location.search);
     const formId = params.get('formId');
     if (formId) {

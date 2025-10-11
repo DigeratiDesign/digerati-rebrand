@@ -2,16 +2,6 @@
 
 // Tally modal “fullscreen” pseudo‐element
 .tally-modal_fullscreen {
-  &::after {
-    content: '';
-    position: absolute;
-    z-index: 1;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 3.5rem;
-    background-color: var(--color-scheme-1--foreground);
-  }
 
   &.is-active {
     display: block;
@@ -43,8 +33,7 @@
 // Preloader base styles
 .tally-modal_preloader {
   --bg: #fff;
-  --front: #050505;
-  --disc-front: #050505;
+  --disc-front: #ffffff;
 
   &.dark-mode {
     --bg: #2a2722;

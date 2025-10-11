@@ -3,7 +3,8 @@
  * Cycles the site favicon through discrete hue-rotated frames while syncing
  * a continuous CSS --h variable for page hue animations.
  *
- * Adds smooth "freeze when reached" behaviour for tally:accent:lock / release.
+ * Adds smooth "freeze when reached" behaviour for tally:accent:lock / release,
+ * and emits events when the lock colour has been reached / released.
  *
  * @author <cabal@digerati.design>
  */
@@ -121,6 +122,13 @@ export const faviconHueRotateStepped = (): void => {
             log("Hue freeze reached", { target: freezeTarget, current: currentHue });
             paused = true;
             document.documentElement.style.setProperty("--h", `${freezeTarget}deg`);
+            eventBus.emit("faviconHueRotateStepped:locked", {
+              hue: freezeTarget,
+              current: currentHue,
+            });
+            console.log("[Favicon] emitting faviconHueRotateStepped:locked", {
+              hue: freezeTarget,
+            });
           }
         }
 
@@ -164,16 +172,16 @@ export const faviconHueRotateStepped = (): void => {
       const onLock = ({ hex }: { hex: string }) => {
         const h = hexToHue(hex);
         if (h != null) {
-          // Adjust for base lime offset
-          const adjustedHue = (h - 120 + 360) % 360;
+          const adjustedHue = (h - 120 + 360) % 360; // base lime offset
           log("Locking hue, will freeze when reached", { hex, adjustedHue });
           freezeTarget = adjustedHue;
-          paused = false; // let it run until reached
+          paused = false;
         }
       };
 
       const onRelease = () => {
         log("Hue rotation released");
+        eventBus.emit("faviconHueRotateStepped:released");
         freezeTarget = null;
         paused = false;
         start();
