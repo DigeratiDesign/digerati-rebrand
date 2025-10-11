@@ -25,8 +25,8 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development node ./bin/build.js",
     "build": "cross-env NODE_ENV=production node ./bin/build.js",
-    "lint": "eslint --ignore-path .gitignore ./src && prettier --check ./src",
-    "lint:fix": "eslint --ignore-path .gitignore ./src --fix",
+    "lint": "eslint --ignore-path .gitignore --ext .ts,.tsx ./src && prettier --check ./src",
+    "lint:fix": "eslint --ignore-path .gitignore --ext .ts,.tsx ./src --fix",
     "check": "tsc --noEmit",
     "format": "prettier --write ./src",
     "test": "playwright test",

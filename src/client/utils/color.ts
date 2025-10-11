@@ -5,25 +5,23 @@ export const normalizeHexColor = (value?: string | null): string | null => {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const withoutHash = trimmed.startsWith("#") ? trimmed.slice(1) : trimmed;
+  const withoutHash = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
   if (/^[0-9a-fA-F]{6}$/.test(withoutHash)) {
     return `#${withoutHash.toLowerCase()}`;
   }
   if (/^[0-9a-fA-F]{3}$/.test(withoutHash)) {
     const expanded = withoutHash
       .toLowerCase()
-      .split("")
+      .split('')
       .map((ch) => ch + ch)
-      .join("");
+      .join('');
     return `#${expanded}`;
   }
   return null;
 };
 
 /** Convert a normalized #rrggbb colour to RGB components. */
-export const hexToRgb = (
-  hex: string
-): { r: number; g: number; b: number } | null => {
+export const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
   const normalized = normalizeHexColor(hex);
   if (!normalized) return null;
   const value = normalized.slice(1);

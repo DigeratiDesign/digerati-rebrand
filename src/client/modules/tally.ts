@@ -2,32 +2,33 @@
 
 /**
  * Tally
- * 
+ *
  * Handles opening a Tally.so iframe modal with a fancy preloader,
  * accessibility focus trapping, and robust fallbacks.
- * 
+ *
  * Emits structured events and logs for observability.
- * 
+ *
  * @author <cabal@digerati.design>
  */
+import { eventBus } from '$digerati/events';
 import {
   autoGroup,
-  log,
-  warn,
   devError,
   error as logError,
+  log,
   time,
-  timeEnd
-} from "$digerati/utils/logger";
-import { eventBus } from "$digerati/events";
-import { normalizeHexColor } from "../utils/color";
+  timeEnd,
+  warn,
+} from '$digerati/utils/logger';
+
+import { normalizeHexColor } from '../utils/color';
 
 const SELECTORS = {
   modal: '[dd-tally="modal"]',
   close: '[dd-tally="close"]',
   iframe: '[dd-tally="iframe"]',
   preloader: '[dd-tally="preloader"]',
-  trigger: '[dd-tally="open"]'
+  trigger: '[dd-tally="open"]',
 };
 
 interface TallyHandles {
@@ -37,19 +38,19 @@ interface TallyHandles {
 
 export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
   let handles: TallyHandles = {
-    openModal: (_: string) => { },
-    closeModal: () => { }
+    openModal: (_: string) => {},
+    closeModal: () => {},
   };
 
-  autoGroup("Tally Init", () => {
+  autoGroup('Tally Init', () => {
     const modal = document.querySelector<HTMLElement>(SELECTORS.modal);
     const closeBtn = document.querySelector<HTMLElement>(SELECTORS.close);
     const iframe = document.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
     const preloader = document.querySelector<HTMLElement>(SELECTORS.preloader);
 
     if (!modal || !closeBtn || !iframe || !preloader) {
-      logError("Missing required DOM elements; aborting tally initialization.");
-      eventBus.emit("tally:init:error", { reason: "missing-dom-elements" });
+      logError('Missing required DOM elements; aborting tally initialization.');
+      eventBus.emit('tally:init:error', { reason: 'missing-dom-elements' });
       return;
     }
 
@@ -64,7 +65,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let accentLockActive = false;
 
     const applyAccentToPreloader = () => {
-      const props = ["--front", "--accent", "--disc-front"];
+      const props = ['--front', '--accent', '--disc-front'];
       if (currentAccentHex) {
         props.forEach((prop) => {
           preloader.style.setProperty(prop, currentAccentHex);
@@ -79,9 +80,9 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const setAccentHex = (value: string | null) => {
       currentAccentHex = value;
       if (value) {
-        log("Tally preloader accent set", value);
+        log('Tally preloader accent set', value);
       } else {
-        log("Tally preloader accent cleared");
+        log('Tally preloader accent cleared');
       }
       applyAccentToPreloader();
     };
@@ -96,26 +97,26 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       vertical: (r) => r,
       horizontal: (_, c) => c,
       spiral: (r, c) => ((r + c) % N) + Math.floor((r + c) / N) * N,
-      random: () => Math.random() * N * N
+      random: () => Math.random() * N * N,
     };
     const modeNames = Object.keys(modes);
     const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
 
     const buildGrid = (container: HTMLElement, mode: string) => {
-      container.innerHTML = "";
-      container.style.display = "";
-      container.style.opacity = "1";
-      container.style.transition = "";
-      const grid = document.createElement("div");
-      grid.className = "grid";
+      container.innerHTML = '';
+      container.style.display = '';
+      container.style.opacity = '1';
+      container.style.transition = '';
+      const grid = document.createElement('div');
+      grid.className = 'grid';
       for (let r = 0; r < N; r++) {
         for (let c = 0; c < N; c++) {
           const fn = modes[mode];
-          const computed = typeof fn === "function" ? fn(r, c) : 0;
+          const computed = typeof fn === 'function' ? fn(r, c) : 0;
           const d = computed.toFixed(3);
-          const cell = document.createElement("div");
-          cell.className = "cell";
-          cell.style.setProperty("--d", d);
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.style.setProperty('--d', d);
           grid.appendChild(cell);
         }
       }
@@ -123,7 +124,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const showPreloader = () => {
-      autoGroup("Show Preloader", () => {
+      autoGroup('Show Preloader', () => {
         fadeOutInProgress = false;
         loadHandled = false;
         if (overallFallbackTimer) {
@@ -131,71 +132,71 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           overallFallbackTimer = null;
         }
 
-        preloader.style.display = "";
-        preloader.style.opacity = "1";
-        preloader.style.transition = "";
+        preloader.style.display = '';
+        preloader.style.opacity = '1';
+        preloader.style.transition = '';
         preloaderShownAt = performance.now();
 
         if (useDarkPreloaderThisOpen) {
-          preloader.classList.add("dark-mode");
+          preloader.classList.add('dark-mode');
         } else {
-          preloader.classList.remove("dark-mode");
+          preloader.classList.remove('dark-mode');
         }
 
         const mode = pickRandomMode();
-        log("Building preloader grid with mode:", mode);
-        time("preloader:build");
+        log('Building preloader grid with mode:', mode);
+        time('preloader:build');
         buildGrid(preloader, mode);
-        timeEnd("preloader:build");
+        timeEnd('preloader:build');
 
         // reset per-open override
         useDarkPreloaderThisOpen = false;
 
         applyAccentToPreloader();
 
-        eventBus.emit("tally:preloader:show", { mode });
+        eventBus.emit('tally:preloader:show', { mode });
       });
     };
 
     const hidePreloaderImmediate = () => {
-      autoGroup("Hide Preloader Immediate", () => {
-        preloader.innerHTML = "";
-        preloader.style.transition = "";
-        preloader.style.opacity = "";
-        preloader.style.display = "none";
+      autoGroup('Hide Preloader Immediate', () => {
+        preloader.innerHTML = '';
+        preloader.style.transition = '';
+        preloader.style.opacity = '';
+        preloader.style.display = 'none';
         fadeOutInProgress = false;
-        preloader.classList.remove("dark-mode");
+        preloader.classList.remove('dark-mode');
         if (overallFallbackTimer) {
           clearTimeout(overallFallbackTimer);
           overallFallbackTimer = null;
         }
-        eventBus.emit("tally:preloader:hide", { method: "immediate" });
+        eventBus.emit('tally:preloader:hide', { method: 'immediate' });
       });
     };
 
     const hidePreloaderWithJSFade = () => {
-      autoGroup("Hide Preloader Fade", () => {
+      autoGroup('Hide Preloader Fade', () => {
         if (fadeOutInProgress) return;
         fadeOutInProgress = true;
 
-        preloader.style.display = "";
-        preloader.style.opacity = "1";
-        preloader.style.transition = "opacity .4s ease";
+        preloader.style.display = '';
+        preloader.style.opacity = '1';
+        preloader.style.transition = 'opacity .4s ease';
 
         requestAnimationFrame(() => {
-          preloader.style.opacity = "0";
+          preloader.style.opacity = '0';
         });
 
         let localFallback: ReturnType<typeof setTimeout> | null = null;
 
         const cleanup = () => {
           if (localFallback) clearTimeout(localFallback);
-          preloader.style.transition = "";
-          preloader.style.opacity = "";
-          preloader.style.display = "none";
-          preloader.innerHTML = "";
+          preloader.style.transition = '';
+          preloader.style.opacity = '';
+          preloader.style.display = 'none';
+          preloader.innerHTML = '';
           fadeOutInProgress = false;
-          preloader.classList.remove("dark-mode");
+          preloader.classList.remove('dark-mode');
           if (overallFallbackTimer) {
             clearTimeout(overallFallbackTimer);
             overallFallbackTimer = null;
@@ -203,18 +204,18 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         };
 
         const onTransitionEnd = (e: TransitionEvent) => {
-          if (e.propertyName === "opacity") {
-            preloader.removeEventListener("transitionend", onTransitionEnd as any);
+          if (e.propertyName === 'opacity') {
+            preloader.removeEventListener('transitionend', onTransitionEnd as any);
             cleanup();
-            eventBus.emit("tally:preloader:hide", { method: "fade" });
+            eventBus.emit('tally:preloader:hide', { method: 'fade' });
           }
         };
-        preloader.addEventListener("transitionend", onTransitionEnd as any);
+        preloader.addEventListener('transitionend', onTransitionEnd as any);
 
         localFallback = window.setTimeout(() => {
-          preloader.removeEventListener("transitionend", onTransitionEnd as any);
+          preloader.removeEventListener('transitionend', onTransitionEnd as any);
           cleanup();
-          eventBus.emit("tally:preloader:hide", { method: "fade-fallback" });
+          eventBus.emit('tally:preloader:hide', { method: 'fade-fallback' });
         }, 600);
       });
     };
@@ -237,11 +238,11 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
       const focusableEls = Array.from(
         modal.querySelectorAll<HTMLElement>(focusableSelectors)
-      ).filter((el) => !el.hasAttribute("disabled"));
+      ).filter((el) => !el.hasAttribute('disabled'));
       if (!focusableEls.length) return;
       const firstEl = focusableEls[0];
       const lastEl = focusableEls[focusableEls.length - 1];
-      if (e.key === "Tab") {
+      if (e.key === 'Tab') {
         if (e.shiftKey && document.activeElement === firstEl) {
           e.preventDefault();
           lastEl.focus();
@@ -253,7 +254,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         closeModal();
       } else {
         trapFocus(e);
@@ -261,8 +262,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const openModal = (url: string) => {
-      autoGroup("Open Modal", () => {
-        eventBus.emit("tally:open", { url });
+      autoGroup('Open Modal', () => {
+        eventBus.emit('tally:open', { url });
         showPreloader();
 
         if (overallFallbackTimer) {
@@ -273,8 +274,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         loadHandled = false;
 
         const cleanListeners = () => {
-          iframe.removeEventListener("load", onLoad);
-          iframe.removeEventListener("error", onError);
+          iframe.removeEventListener('load', onLoad);
+          iframe.removeEventListener('error', onError);
           if (overallFallbackTimer) {
             clearTimeout(overallFallbackTimer);
             overallFallbackTimer = null;
@@ -286,26 +287,26 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           loadHandled = true;
           scheduleHideAfterMinDuration();
           cleanListeners();
-          log("Tally iframe loaded successfully for", url);
-          eventBus.emit("tally:load:success", { url });
+          log('Tally iframe loaded successfully for', url);
+          eventBus.emit('tally:load:success', { url });
         };
         const onError = () => {
           if (loadHandled) return;
           loadHandled = true;
           scheduleHideAfterMinDuration();
           cleanListeners();
-          logError("Tally iframe failed to load for", url);
-          eventBus.emit("tally:load:error", { url });
+          logError('Tally iframe failed to load for', url);
+          eventBus.emit('tally:load:error', { url });
         };
 
-        iframe.addEventListener("load", onLoad);
-        iframe.addEventListener("error", onError);
+        iframe.addEventListener('load', onLoad);
+        iframe.addEventListener('error', onError);
 
         overallFallbackTimer = setTimeout(() => {
           if (!loadHandled) {
             loadHandled = true;
             hidePreloaderImmediate();
-            eventBus.emit("tally:load:timeout", { url });
+            eventBus.emit('tally:load:timeout', { url });
           }
           overallFallbackTimer = null;
         }, 5000);
@@ -313,39 +314,39 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         // --- Safari first-load redirect bug workaround ---
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         if (isSafari) {
-          log("🐞 [Safari] Pre-warming embed URL to prevent cached /r/ redirect:", url);
-          fetch(url, { mode: "no-cors", cache: "reload" })
+          log('🐞 [Safari] Pre-warming embed URL to prevent cached /r/ redirect:', url);
+          fetch(url, { mode: 'no-cors', cache: 'reload' })
             .then(() => {
-              log("✅ [Safari] Pre-warm fetch completed for", url);
+              log('✅ [Safari] Pre-warm fetch completed for', url);
             })
             .catch((err) => {
-              warn("⚠️ [Safari] Pre-warm fetch failed:", err);
+              warn('⚠️ [Safari] Pre-warm fetch failed:', err);
             });
         }
         // --- end Safari patch ---
 
         iframe.src = url;
 
-        modal.classList.add("is-active");
-        document.body.classList.add("no-scroll");
-        modal.setAttribute("aria-hidden", "false");
+        modal.classList.add('is-active');
+        document.body.classList.add('no-scroll');
+        modal.setAttribute('aria-hidden', 'false');
         previousActiveElement = document.activeElement;
         setTimeout(() => {
           closeBtn.focus();
         }, 50);
-        document.addEventListener("keydown", handleKeyDown);
-        eventBus.emit("tally:opened", { url });
+        document.addEventListener('keydown', handleKeyDown);
+        eventBus.emit('tally:opened', { url });
       });
     };
 
     const closeModal = () => {
-      autoGroup("Close Modal", () => {
-        eventBus.emit("tally:close");
-        log("Closing tally modal");
-        modal.classList.remove("is-active");
-        document.body.classList.remove("no-scroll");
-        modal.setAttribute("aria-hidden", "true");
-        iframe.src = "";
+      autoGroup('Close Modal', () => {
+        eventBus.emit('tally:close');
+        log('Closing tally modal');
+        modal.classList.remove('is-active');
+        document.body.classList.remove('no-scroll');
+        modal.setAttribute('aria-hidden', 'true');
+        iframe.src = '';
         if (previousActiveElement && (previousActiveElement as HTMLElement).focus) {
           (previousActiveElement as HTMLElement).focus();
         }
@@ -354,11 +355,11 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           overallFallbackTimer = null;
         }
         hidePreloaderImmediate();
-        document.removeEventListener("keydown", handleKeyDown);
-        eventBus.emit("tally:closed");
+        document.removeEventListener('keydown', handleKeyDown);
+        eventBus.emit('tally:closed');
         if (accentLockActive) {
-          log("Tally accent lock released on close");
-          eventBus.emit("tally:accent:release");
+          log('Tally accent lock released on close');
+          eventBus.emit('tally:accent:release');
           accentLockActive = false;
         }
         setAccentHex(null);
@@ -370,38 +371,38 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       const link = target.closest<HTMLElement>(SELECTORS.trigger);
       if (!link) return;
       e.preventDefault();
-      const href = (link as HTMLAnchorElement).getAttribute("href") || "";
-      const accentAttr = link.getAttribute("dd-tally-accent");
+      const href = (link as HTMLAnchorElement).getAttribute('href') || '';
+      const accentAttr = link.getAttribute('dd-tally-accent');
       const accentHex = normalizeHexColor(accentAttr);
       if (accentHex) {
-        log("Tally accent lock requested from trigger", { raw: accentAttr, normalized: accentHex });
+        log('Tally accent lock requested from trigger', { raw: accentAttr, normalized: accentHex });
         setAccentHex(accentHex);
-        eventBus.emit("tally:accent:lock", { hex: accentHex });
+        eventBus.emit('tally:accent:lock', { hex: accentHex });
         accentLockActive = true;
       } else {
         if (accentAttr) {
-          warn("Tally accent lock discarded due to invalid hex", accentAttr);
+          warn('Tally accent lock discarded due to invalid hex', accentAttr);
         }
         setAccentHex(null);
       }
       if (href) openModal(href);
     };
 
-    document.body.addEventListener("click", onBodyClick, true);
-    closeBtn.addEventListener("click", closeModal);
+    document.body.addEventListener('click', onBodyClick, true);
+    closeBtn.addEventListener('click', closeModal);
 
     // auto-open if ?formId=... present and use dark variant for that first open
     const params = new URLSearchParams(window.location.search);
-    const formId = params.get("formId");
+    const formId = params.get('formId');
     if (formId) {
       const url = `https://tally.so/embed/${encodeURIComponent(formId)}`;
-      log("FormId detected, auto-opening:", formId);
+      log('FormId detected, auto-opening:', formId);
       useDarkPreloaderThisOpen = true;
       openModal(url);
     }
 
     handles = { openModal, closeModal };
-    eventBus.emit("tally:initialized");
+    eventBus.emit('tally:initialized');
   });
 
   return handles;
