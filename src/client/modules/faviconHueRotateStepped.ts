@@ -332,11 +332,12 @@ export const faviconHueRotateStepped = (): void => {
             let lastCssWriteAt = 0;
             let lastStep = -1;
             let origin = performance.now();
-            let freezeTarget: FreezeTarget | null = null;
+            let lockedTarget: FreezeTarget | null = null;
             let pausedAt: number | null = null;
 
-            const setCssHue = (angle: number) => {
-                document.documentElement.style.setProperty("--h", `${Math.round(angle)}deg`);
+            const setCssHue = (rotation: number) => {
+                const cssHue = baseHueMeasured ? normalizeHue(rotation + baseHue) : rotation;
+                document.documentElement.style.setProperty("--h", `${Math.round(cssHue)}deg`);
             };
 
             const applyStep = (index: number) => {
@@ -362,6 +363,10 @@ export const faviconHueRotateStepped = (): void => {
             };
 
             const tick = (now: number) => {
+                if (lockedTarget) {
+                    rafId = null;
+                    return;
+                }
                 const cssMinDelta = 1000 / MAX_FPS;
                 const phase = computePhase(now);
                 const angle = phase * 360;
@@ -384,8 +389,6 @@ export const faviconHueRotateStepped = (): void => {
                         return;
                     }
                 }
-
-                rafId = requestAnimationFrame(tick);
             };
 
             const start = () => {
@@ -426,7 +429,14 @@ export const faviconHueRotateStepped = (): void => {
                     phase: hueToPhase(rotation),
                     step: hueToStep(rotation),
                 };
-                start();
+                const now = performance.now();
+                origin = now - target.phase * DURATION;
+                pausedAt = now;
+                lockedTarget = target;
+                setCssHue(target.rotation);
+                applyStep(target.step);
+                lastCssWriteAt = now;
+                stop();
             };
 
             const release = () => {
@@ -453,7 +463,7 @@ export const faviconHueRotateStepped = (): void => {
             document.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "hidden") {
                     stop();
-                } else if (!freezeTarget && pausedAt === null) {
+                } else if (!lockedTarget && pausedAt === null) {
                     start();
                 }
             });
@@ -599,6 +609,54 @@ const makeLink = (id: string, sizes: string): HTMLLinkElement => {
   l.setAttribute('sizes', sizes);
   document.head.appendChild(l);
   return l;
+};
+
+const estimateBaseHue = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+): number | null => {
+    try {
+        const { data } = ctx.getImageData(0, 0, width, height);
+        let sumX = 0;
+        let sumY = 0;
+        let totalWeight = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i + 3] / 255;
+            if (alpha < 0.05) continue;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const hue = rgbToHue(r, g, b);
+            if (hue === null) continue;
+
+            const nr = r / 255;
+            const ng = g / 255;
+            const nb = b / 255;
+            const max = Math.max(nr, ng, nb);
+            const min = Math.min(nr, ng, nb);
+            const delta = max - min;
+            if (delta < 0.05) continue;
+
+            const weight = delta * alpha;
+            const rad = (hue * Math.PI) / 180;
+            sumX += Math.cos(rad) * weight;
+            sumY += Math.sin(rad) * weight;
+            totalWeight += weight;
+        }
+
+        if (totalWeight === 0) {
+            return null;
+        }
+
+        const angle = Math.atan2(sumY, sumX) * (180 / Math.PI);
+        return normalizeHue(angle);
+    } catch (error) {
+        devError("Unable to sample favicon base hue", error);
+        return null;
+    }
 };
 
 const estimateBaseHue = (
