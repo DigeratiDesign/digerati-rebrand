@@ -1,13 +1,5 @@
 // src/client/styles/components/_tally-modal.less
 
-.tally-modal_fullscreen::after {
-  display: none;
-}
-
-.tally-modal_fullscreen .fs-cc_close-button {
-  display: none;
-}
-
 // Tally modal “fullscreen” pseudo‐element
 .tally-modal_fullscreen {
   &::after {
@@ -63,14 +55,4 @@
       background: var(--disc-front);
     }
   }
-}
-
-// Removed the @keyframes fadeOut block entirely, since fading is handled in JS.
-
-.tally-modal_fullscreen::after {
-  display: none;
-}
-
-.tally-modal_fullscreen .fs-cc_close-button {
-  display: none;
 }
