@@ -124,6 +124,8 @@ export interface AppEvents {
     "tally:close": void;
     "tally:closed": void;
     "tally:initialized": void;
+    "tally:accent:lock": { hex: string };
+    "tally:accent:release": void;
 
     // Testimonial Avatar
     "testimonialAvatar:init": void;

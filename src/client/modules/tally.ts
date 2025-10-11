@@ -20,6 +20,7 @@ import {
   timeEnd
 } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
+import { normalizeHexColor } from "../utils/color";
 
 const SELECTORS = {
   modal: '[dd-tally="modal"]',
@@ -59,6 +60,26 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let loadHandled = false;
     let preloaderShownAt = 0;
     let useDarkPreloaderThisOpen = false;
+    let currentAccentHex: string | null = null;
+    let accentLockActive = false;
+
+    const applyAccentToPreloader = () => {
+      const props = ["--front", "--accent", "--disc-front"];
+      if (currentAccentHex) {
+        props.forEach((prop) => {
+          preloader.style.setProperty(prop, currentAccentHex);
+        });
+      } else {
+        props.forEach((prop) => {
+          preloader.style.removeProperty(prop);
+        });
+      }
+    };
+
+    const setAccentHex = (value: string | null) => {
+      currentAccentHex = value;
+      applyAccentToPreloader();
+    };
 
     // Preloader grid logic
     const N = 11;
@@ -124,6 +145,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
 
         // reset per-open override
         useDarkPreloaderThisOpen = false;
+
+        applyAccentToPreloader();
 
         eventBus.emit("tally:preloader:show", { mode });
       });
@@ -328,6 +351,11 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         hidePreloaderImmediate();
         document.removeEventListener("keydown", handleKeyDown);
         eventBus.emit("tally:closed");
+        if (accentLockActive) {
+          eventBus.emit("tally:accent:release");
+          accentLockActive = false;
+        }
+        setAccentHex(null);
       });
     };
 
@@ -337,7 +365,15 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       if (!link) return;
       e.preventDefault();
       const href = (link as HTMLAnchorElement).getAttribute("href") || "";
-      console.log("Href", href);
+      const accentAttr = link.getAttribute("dd-tally-accent");
+      const accentHex = normalizeHexColor(accentAttr);
+      if (accentHex) {
+        setAccentHex(accentHex);
+        eventBus.emit("tally:accent:lock", { hex: accentHex });
+        accentLockActive = true;
+      } else {
+        setAccentHex(null);
+      }
       if (href) openModal(href);
     };
 
