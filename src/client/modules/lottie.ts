@@ -43,7 +43,7 @@ export function lottieInit() {
     const createAnimation = () => {
       if (animation) return;
       console.log(`[${now()}] 🎬 Creating animation for`, container);
-      animation = lottie.loadAnimation({
+      const created = lottie.loadAnimation({
         container,
         renderer: isIOS ? 'canvas' : 'svg', // 👈 canvas on iOS
         loop: true,
@@ -51,26 +51,30 @@ export function lottieInit() {
         path: container.getAttribute('dd-lottie')!,
       });
 
-      animation.addEventListener('loopComplete', () => {
+      animation = created;
+
+      created.addEventListener('loopComplete', () => {
         // ✅ Handle iOS deferred pause
-        if (isIOS && iosToPause === animation) {
+        if (isIOS && iosToPause === created) {
           console.log(`[${now()}] ⏸️ Pausing previous iOS animation after loop`);
-          animation.pause();
+          created.pause();
           iosToPause = null;
         }
 
         // ✅ Handle desktop deferred pause
-        if (!isIOS && desktopToPause.has(animation)) {
+        if (!isIOS && desktopToPause.has(created)) {
           console.log(`[${now()}] ⏸️ Pausing old desktop animation after loop`);
-          animation.pause();
-          desktopToPause.delete(animation);
-          const index = activeDesktop.indexOf(animation);
+          created.pause();
+          desktopToPause.delete(created);
+          const index = activeDesktop.indexOf(created);
           if (index >= 0) activeDesktop.splice(index, 1);
         }
 
         if (pendingDestroy && !isVisible) {
-          animation?.destroy();
-          animation = null;
+          created.destroy();
+          if (animation === created) {
+            animation = null;
+          }
           pendingDestroy = false;
         } else if (pendingDestroy && isVisible) {
           pendingDestroy = false;
