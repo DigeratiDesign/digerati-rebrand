@@ -12,7 +12,7 @@
 
 import { autoGroup, log, devError } from "$digerati/utils/logger";
 import { eventBus } from "$digerati/events";
-import { normalizeHexColor, hexToHue, normalizeHue, hueDistance } from "../utils/color";
+import { normalizeHexColor, hexToHue, normalizeHue, rgbToHue } from "../utils/color";
 
 // Tune step cadence via interval rather than arbitrary step count
 const DURATION = 12000;  // ms for full cycle
@@ -22,10 +22,10 @@ const SIZE32 = 32;
 const SIZE16 = 16;
 
 const MAX_FPS = 60;      // CSS update cadence (page smoothness)
-const HUE_MATCH_TOLERANCE_DEG = 1.5;
 
 interface FreezeTarget {
-    hue: number;
+    rotation: number;
+    target: number;
     phase: number;
     step: number;
 }
@@ -76,13 +76,21 @@ export const faviconHueRotateStepped = (): void => {
         let releaseHandler: (() => void) | null = null;
         let queuedLockHex: string | null = null;
         let releaseQueued = false;
+        let baseHue = 0;
+        let baseHueMeasured = false;
 
         const handleLockEvent = ({ hex }: { hex: string }) => {
             const normalized = normalizeHexColor(hex);
-            if (!normalized) return;
+            if (!normalized) {
+                log("Favicon hue lock received invalid hex", hex);
+                return;
+            }
+            log("Favicon hue lock requested", { raw: hex, normalized });
             if (lockHandler) {
+                log("Favicon hue lock applying immediately", normalized);
                 lockHandler(normalized);
             } else {
+                log("Favicon hue lock queued", normalized);
                 queuedLockHex = normalized;
                 releaseQueued = false;
             }
@@ -90,8 +98,10 @@ export const faviconHueRotateStepped = (): void => {
 
         const handleReleaseEvent = () => {
             if (releaseHandler) {
+                log("Favicon hue release applying immediately");
                 releaseHandler();
             } else {
+                log("Favicon hue release queued");
                 queuedLockHex = null;
                 releaseQueued = true;
             }
@@ -110,6 +120,20 @@ export const faviconHueRotateStepped = (): void => {
         img.onload = () => {
             const frames32: string[] = [];
             const frames16: string[] = [];
+
+            (ctx32 as any).filter = "none";
+            ctx32.clearRect(0, 0, SIZE32, SIZE32);
+            ctx32.drawImage(img, 0, 0, SIZE32, SIZE32);
+            const measuredHue = estimateBaseHue(ctx32, SIZE32, SIZE32);
+            if (measuredHue != null) {
+                baseHue = measuredHue;
+                baseHueMeasured = true;
+                log("Detected favicon base hue", baseHue);
+            } else {
+                baseHue = 0;
+                baseHueMeasured = false;
+                log("Favicon base hue detection unavailable; assuming 0deg base");
+            }
 
             for (let i = 0; i < STEPS; i++) {
                 const angle = Math.round(i * (360 / STEPS));
@@ -149,11 +173,12 @@ export const faviconHueRotateStepped = (): void => {
             let lastCssWriteAt = 0;
             let lastStep = -1;
             let origin = performance.now();
-            let freezeTarget: FreezeTarget | null = null;
+            let lockedTarget: FreezeTarget | null = null;
             let pausedAt: number | null = null;
 
-            const setCssHue = (angle: number) => {
-                document.documentElement.style.setProperty("--h", `${Math.round(angle)}deg`);
+            const setCssHue = (rotation: number) => {
+                const cssHue = baseHueMeasured ? normalizeHue(rotation + baseHue) : rotation;
+                document.documentElement.style.setProperty("--h", `${Math.round(cssHue)}deg`);
             };
 
             const applyStep = (index: number) => {
@@ -167,17 +192,11 @@ export const faviconHueRotateStepped = (): void => {
                 return wrapped / DURATION;
             };
 
-            const freezeAt = (now: number, target: FreezeTarget) => {
-                const { phase, hue, step } = target;
-                origin = now - phase * DURATION;
-                pausedAt = now;
-                document.documentElement.style.setProperty("--h", `${hue}deg`);
-                applyStep(step);
-                lastCssWriteAt = now;
-                stop();
-            };
-
             const tick = (now: number) => {
+                if (lockedTarget) {
+                    rafId = null;
+                    return;
+                }
                 const cssMinDelta = 1000 / MAX_FPS;
                 const phase = computePhase(now);
                 const angle = phase * 360;
@@ -192,16 +211,11 @@ export const faviconHueRotateStepped = (): void => {
                     applyStep(stepIndex);
                 }
 
-                if (freezeTarget) {
-                    const delta = hueDistance(angle, freezeTarget.hue);
-                    if (delta <= HUE_MATCH_TOLERANCE_DEG || stepIndex === freezeTarget.step) {
-                        freezeAt(now, freezeTarget);
-                        freezeTarget = null;
-                        return;
-                    }
+                if (!lockedTarget) {
+                    rafId = requestAnimationFrame(tick);
+                } else {
+                    rafId = null;
                 }
-
-                rafId = requestAnimationFrame(tick);
             };
 
             const start = () => {
@@ -229,19 +243,38 @@ export const faviconHueRotateStepped = (): void => {
                 const normalized = normalizeHexColor(hex);
                 if (!normalized) return;
                 const hue = hexToHue(normalized);
-                if (hue === null) return;
-                resumeFromPause();
-                const adjustedHue = normalizeHue(hue);
-                freezeTarget = {
-                    hue: adjustedHue,
-                    phase: hueToPhase(adjustedHue),
-                    step: hueToStep(adjustedHue),
+                if (hue === null) {
+                    log("Favicon hue lock failed to compute hue", normalized);
+                    return;
+                }
+                const targetHue = normalizeHue(hue);
+                const base = baseHueMeasured ? baseHue : 0;
+                const rotation = normalizeHue(targetHue - base);
+                log("Favicon hue rotation locking", {
+                    normalized,
+                    targetHue,
+                    baseHue: baseHueMeasured ? baseHue : "assumed-0",
+                    rotation,
+                });
+                const target: FreezeTarget = {
+                    rotation,
+                    target: targetHue,
+                    phase: hueToPhase(rotation),
+                    step: hueToStep(rotation),
                 };
-                start();
+                const now = performance.now();
+                origin = now - target.phase * DURATION;
+                pausedAt = now;
+                lockedTarget = target;
+                setCssHue(target.rotation);
+                applyStep(target.step);
+                lastCssWriteAt = now;
+                stop();
             };
 
             const release = () => {
-                freezeTarget = null;
+                log("Favicon hue rotation released");
+                lockedTarget = null;
                 resumeFromPause();
                 start();
             };
@@ -250,10 +283,12 @@ export const faviconHueRotateStepped = (): void => {
             releaseHandler = release;
 
             if (queuedLockHex) {
+                log("Favicon hue rotation processing queued lock", queuedLockHex);
                 lockToHex(queuedLockHex);
                 queuedLockHex = null;
             }
             if (releaseQueued) {
+                log("Favicon hue rotation processing queued release");
                 release();
                 releaseQueued = false;
             }
@@ -261,7 +296,7 @@ export const faviconHueRotateStepped = (): void => {
             document.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "hidden") {
                     stop();
-                } else if (!freezeTarget && pausedAt === null) {
+                } else if (!lockedTarget && pausedAt === null) {
                     start();
                 }
             });
@@ -338,4 +373,52 @@ const makeLink = (id: string, sizes: string): HTMLLinkElement => {
     l.setAttribute("sizes", sizes);
     document.head.appendChild(l);
     return l;
+};
+
+const estimateBaseHue = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+): number | null => {
+    try {
+        const { data } = ctx.getImageData(0, 0, width, height);
+        let sumX = 0;
+        let sumY = 0;
+        let totalWeight = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i + 3] / 255;
+            if (alpha < 0.05) continue;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const hue = rgbToHue(r, g, b);
+            if (hue === null) continue;
+
+            const nr = r / 255;
+            const ng = g / 255;
+            const nb = b / 255;
+            const max = Math.max(nr, ng, nb);
+            const min = Math.min(nr, ng, nb);
+            const delta = max - min;
+            if (delta < 0.05) continue;
+
+            const weight = delta * alpha;
+            const rad = (hue * Math.PI) / 180;
+            sumX += Math.cos(rad) * weight;
+            sumY += Math.sin(rad) * weight;
+            totalWeight += weight;
+        }
+
+        if (totalWeight === 0) {
+            return null;
+        }
+
+        const angle = Math.atan2(sumY, sumX) * (180 / Math.PI);
+        return normalizeHue(angle);
+    } catch (error) {
+        devError("Unable to sample favicon base hue", error);
+        return null;
+    }
 };
