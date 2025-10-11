@@ -1,7 +1,7 @@
 // src/digerati/modules/pageBlurTitle.ts
 
-import { log, warn } from "$digerati/utils/logger";
-import { eventBus } from "$digerati/events";
+import { eventBus } from '$digerati/events';
+import { log, warn } from '$digerati/utils/logger';
 
 export interface PageBlurTitleOptions {
   messages: string[]; // required, no defaults
@@ -14,7 +14,7 @@ export class PageBlurTitle {
 
   constructor(opts: PageBlurTitleOptions) {
     if (!opts.messages?.length) {
-      warn("[PageBlurTitle] no messages provided; nothing will run.");
+      warn('[PageBlurTitle] no messages provided; nothing will run.');
     }
     this.originalTitle = document.title;
     this.messages = opts.messages;
@@ -33,12 +33,12 @@ export class PageBlurTitle {
   private handleVisibilityChange() {
     if (document.hidden) {
       document.title = this.getRandomMessage();
-      log("PageBlurTitle set random blur title.");
-      eventBus.emit("pageBlurTitle:blurred", { title: document.title });
+      log('PageBlurTitle set random blur title.');
+      eventBus.emit('pageBlurTitle:blurred', { title: document.title });
     } else {
       document.title = this.originalTitle;
-      log("PageBlurTitle restored original title.");
-      eventBus.emit("pageBlurTitle:focused", { title: this.originalTitle });
+      log('PageBlurTitle restored original title.');
+      eventBus.emit('pageBlurTitle:focused', { title: this.originalTitle });
     }
   }
 
@@ -47,19 +47,19 @@ export class PageBlurTitle {
    */
   init() {
     if (!this.messages.length) return;
-    document.addEventListener("visibilitychange", this.boundVisibilityChange);
-    log("PageBlurTitle initialized.");
-    eventBus.emit("pageBlurTitle:initialized", { messagesCount: this.messages.length });
+    document.addEventListener('visibilitychange', this.boundVisibilityChange);
+    log('PageBlurTitle initialized.');
+    eventBus.emit('pageBlurTitle:initialized', { messagesCount: this.messages.length });
   }
 
   /**
    * Cleans up listeners and restores title.
    */
   destroy() {
-    document.removeEventListener("visibilitychange", this.boundVisibilityChange);
+    document.removeEventListener('visibilitychange', this.boundVisibilityChange);
     document.title = this.originalTitle;
-    log("PageBlurTitle destroyed and original title restored.");
-    eventBus.emit("pageBlurTitle:destroyed");
+    log('PageBlurTitle destroyed and original title restored.');
+    eventBus.emit('pageBlurTitle:destroyed');
   }
 }
 

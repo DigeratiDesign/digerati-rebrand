@@ -13,58 +13,58 @@
 
 // Generic helpers (accept a block of rules)
 .down(@max, @rules) {
-    @media (max-width: @max) {
-        & {
-            @rules();
-        }
+  @media (max-width: @max) {
+    & {
+      @rules();
     }
+  }
 }
 
 .up(@min, @rules) {
-    @media (min-width: @min) {
-        & {
-            @rules();
-        }
+  @media (min-width: @min) {
+    & {
+      @rules();
     }
+  }
 }
 
 .between(@min, @max, @rs) {
-    @media (min-width:@min) and (max-width:@max) {
-        & {
-            @rs();
-        }
+  @media (min-width: @min) and (max-width: @max) {
+    & {
+      @rs();
     }
+  }
 }
 
 // Webflow-named convenience mixins
 .untilTablet(@rules) {
-    .down(@w-tablet-max, @rules);
+  .down(@w-tablet-max, @rules);
 }
 
 // ≤991
 .untilLandscape(@rules) {
-    .down(@w-landscape-max, @rules);
+  .down(@w-landscape-max, @rules);
 }
 
 // ≤767
 .untilPortrait(@rules) {
-    .down(@w-portrait-max, @rules);
+  .down(@w-portrait-max, @rules);
 }
 
 // ≤479
 
 .from1280(@rules) {
-    .up(@w-lg-min, @rules);
+  .up(@w-lg-min, @rules);
 }
 
 // ≥1280
 .from1440(@rules) {
-    .up(@w-xl-min, @rules);
+  .up(@w-xl-min, @rules);
 }
 
 // ≥1440
 .from1920(@rules) {
-    .up(@w-xxl-min, @rules);
+  .up(@w-xxl-min, @rules);
 }
 
 // ≥1920

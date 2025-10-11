@@ -2,33 +2,33 @@
 
 // Fade direction utilities
 .fade-ltr {
-    --fade-dir: to right;
+  --fade-dir: to right;
 }
 
 .fade-rtl {
-    --fade-dir: to left;
+  --fade-dir: to left;
 }
 
 // Logo marquee animation
 .social-proof_wrapper {
-    .social-proof_logos {
-        animation: logo-marquee-scroll 25s linear infinite;
-    }
+  .social-proof_logos {
+    animation: logo-marquee-scroll 25s linear infinite;
+  }
 
-    &:hover {
-        .social-proof_logos {
-            animation-play-state: paused;
-        }
+  &:hover {
+    .social-proof_logos {
+      animation-play-state: paused;
     }
+  }
 }
 
 // Keyframes
 @keyframes logo-marquee-scroll {
-    from {
-        transform: translateX(0);
-    }
+  from {
+    transform: translateX(0);
+  }
 
-    to {
-        transform: translateX(-100%);
-    }
+  to {
+    transform: translateX(-100%);
+  }
 }

@@ -1,21 +1,23 @@
 // src/client/styles/glow-img-border.less
 
 .glow-img-wrapper {
-    margin-top: calc(var(--_ui-styles---stroke--glow-width) * -1);
-    margin-left: calc(var(--_ui-styles---stroke--glow-width) * -1);
-    margin-right: calc(var(--_ui-styles---stroke--glow-width) * -2);
-    margin-bottom: calc(var(--_ui-styles---stroke--glow-width) * -2);
+  margin-top: calc(var(--_ui-styles---stroke--glow-width) * -1);
+  margin-left: calc(var(--_ui-styles---stroke--glow-width) * -1);
+  margin-right: calc(var(--_ui-styles---stroke--glow-width) * -2);
+  margin-bottom: calc(var(--_ui-styles---stroke--glow-width) * -2);
 
-    .border-glow {
-        background-size: 100% 100%;
-        background-position: 0 0;
-        background-image: conic-gradient(from 90deg at 50% 50%,
-                transparent 50%,
-                var(--color-scheme-1--accent) 85%,
-                transparent 100%);
+  .border-glow {
+    background-size: 100% 100%;
+    background-position: 0 0;
+    background-image: conic-gradient(
+      from 90deg at 50% 50%,
+      transparent 50%,
+      var(--color-scheme-1--accent) 85%,
+      transparent 100%
+    );
 
-        &.is-reversed {
-            transform: scale(-1);
-        }
+    &.is-reversed {
+      transform: scale(-1);
     }
+  }
 }

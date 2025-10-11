@@ -1,12 +1,12 @@
-import lottie from "lottie-web";
+import lottie from 'lottie-web';
 
 export function lottieInit() {
-  const containers = document.querySelectorAll<HTMLElement>("[dd-lottie]");
-  const now = () => new Date().toISOString().split("T")[1].replace("Z", "");
+  const containers = document.querySelectorAll<HTMLElement>('[dd-lottie]');
+  const now = () => new Date().toISOString().split('T')[1].replace('Z', '');
 
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
 
   // iOS state
   let activeIOS: ReturnType<typeof lottie.loadAnimation> | null = null;
@@ -17,7 +17,9 @@ export function lottieInit() {
   const desktopToPause: Set<ReturnType<typeof lottie.loadAnimation>> = new Set();
 
   const waitForLayout = (el: HTMLElement, callback: () => void) => {
-    let lastW = 0, lastH = 0, stable = 0;
+    let lastW = 0,
+      lastH = 0,
+      stable = 0;
     const check = () => {
       const { width, height } = el.getBoundingClientRect();
       if (width && height && width === lastW && height === lastH) {
@@ -33,7 +35,7 @@ export function lottieInit() {
     requestAnimationFrame(check);
   };
 
-  containers.forEach(container => {
+  containers.forEach((container) => {
     let animation: ReturnType<typeof lottie.loadAnimation> | null = null;
     let isVisible = false;
     let pendingDestroy = false;
@@ -43,13 +45,13 @@ export function lottieInit() {
       console.log(`[${now()}] 🎬 Creating animation for`, container);
       animation = lottie.loadAnimation({
         container,
-        renderer: isIOS ? "canvas" : "svg", // 👈 canvas on iOS
+        renderer: isIOS ? 'canvas' : 'svg', // 👈 canvas on iOS
         loop: true,
         autoplay: true,
-        path: container.getAttribute("dd-lottie")!,
+        path: container.getAttribute('dd-lottie')!,
       });
 
-      animation.addEventListener("loopComplete", () => {
+      animation.addEventListener('loopComplete', () => {
         // ✅ Handle iOS deferred pause
         if (isIOS && iosToPause === animation) {
           console.log(`[${now()}] ⏸️ Pausing previous iOS animation after loop`);
@@ -131,9 +133,12 @@ export function lottieInit() {
       isVisible = visible;
     };
 
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => handleVisibility(entry.isIntersecting));
-    }, { threshold: 0.2 });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => handleVisibility(entry.isIntersecting));
+      },
+      { threshold: 0.2 }
+    );
 
     observer.observe(container);
   });

@@ -1,9 +1,9 @@
 // src/client/styles/colour-cycle.less
 
 @property --h {
-    syntax: '<angle>';
-    inherits: true;
-    initial-value: 0deg;
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
 }
 
 // :root {
@@ -11,15 +11,15 @@
 // }
 
 .colour-cycle {
-    filter: hue-rotate(var(--h));
+  filter: hue-rotate(var(--h));
 }
 
 @keyframes hueClock {
-    from {
-        --h: 0deg;
-    }
+  from {
+    --h: 0deg;
+  }
 
-    to {
-        --h: 360deg;
-    }
+  to {
+    --h: 360deg;
+  }
 }
