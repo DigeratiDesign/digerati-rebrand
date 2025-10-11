@@ -78,6 +78,11 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
 
     const setAccentHex = (value: string | null) => {
       currentAccentHex = value;
+      if (value) {
+        log("Tally preloader accent set", value);
+      } else {
+        log("Tally preloader accent cleared");
+      }
       applyAccentToPreloader();
     };
 
@@ -352,6 +357,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         document.removeEventListener("keydown", handleKeyDown);
         eventBus.emit("tally:closed");
         if (accentLockActive) {
+          log("Tally accent lock released on close");
           eventBus.emit("tally:accent:release");
           accentLockActive = false;
         }
@@ -368,10 +374,14 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       const accentAttr = link.getAttribute("dd-tally-accent");
       const accentHex = normalizeHexColor(accentAttr);
       if (accentHex) {
+        log("Tally accent lock requested from trigger", { raw: accentAttr, normalized: accentHex });
         setAccentHex(accentHex);
         eventBus.emit("tally:accent:lock", { hex: accentHex });
         accentLockActive = true;
       } else {
+        if (accentAttr) {
+          warn("Tally accent lock discarded due to invalid hex", accentAttr);
+        }
         setAccentHex(null);
       }
       if (href) openModal(href);
