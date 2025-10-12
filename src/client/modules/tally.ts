@@ -9,24 +9,19 @@
  * Accent lock events still emit for hue control,
  * but preloader visuals remain neutral (no accent applied).
  *
- * Also fades in [dd-tally="dots"] once the favicon hue lock is reached,
- * and resets opacity when released.
- *
  * Includes verbose logging for debugging hue event flow.
  *
  * @author <cabal@digerati.design>
  */
-import { eventBus } from '$digerati/events';
+import { eventBus } from "$digerati/events";
 import {
   autoGroup,
   error as logError,
   log,
   time,
   timeEnd,
-  warn,
-} from '$digerati/utils/logger';
-
-import { normalizeHexColor } from '../utils/color';
+} from "$digerati/utils/logger";
+import { normalizeHexColor } from "../utils/color";
 
 const SELECTORS = {
   modal: '[dd-tally="modal"]',
@@ -48,35 +43,22 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     closeModal: () => { },
   };
 
-  autoGroup('Tally Init', () => {
+  autoGroup("Tally Init", () => {
     const modal = document.querySelector<HTMLElement>(SELECTORS.modal);
     const closeBtn = document.querySelector<HTMLElement>(SELECTORS.close);
     const iframe = document.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
     const preloader = document.querySelector<HTMLElement>(SELECTORS.preloader);
-    const dots = document.querySelector<HTMLElement>(SELECTORS.dots);
 
-    console.log('[Tally] Registering faviconHueRotateStepped event listeners');
-    eventBus.on('faviconHueRotateStepped:locked', ({ hue }) => {
-      console.log('[Tally] received faviconHueRotateStepped:locked', { hue });
-      if (dots) dots.style.opacity = '1';
-    });
-
-    eventBus.on('faviconHueRotateStepped:released', () => {
-      console.log('[Tally] received faviconHueRotateStepped:released');
-      if (dots) dots.style.opacity = '0';
-    });
-
-    log('Tally found elements', {
+    log("Tally found elements", {
       modal: !!modal,
       closeBtn: !!closeBtn,
       iframe: !!iframe,
       preloader: !!preloader,
-      dots: !!dots,
     });
 
     if (!modal || !closeBtn || !iframe || !preloader) {
-      logError('Missing required DOM elements; aborting tally initialization.');
-      eventBus.emit('tally:init:error', { reason: 'missing-dom-elements' });
+      logError("Missing required DOM elements; aborting tally initialization.");
+      eventBus.emit("tally:init:error", { reason: "missing-dom-elements" });
       return;
     }
 
@@ -86,7 +68,6 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let fadeOutInProgress = false;
     let loadHandled = false;
     let preloaderShownAt = 0;
-    let useDarkPreloaderThisOpen = false;
     let accentLockActive = false;
 
     // --- PRELOADER GRID LOGIC ---
@@ -95,30 +76,31 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       topRight: (r, c) => Math.hypot(r, N - 1 - c),
       topLeft: (r, c) => Math.hypot(r, c),
       bottomLeft: (r, c) => Math.hypot(N - 1 - r, c),
-      bottomRight: (r, c) => Math.hypot(r, N - 1 - c),
+      bottomRight: (r, c) => Math.hypot(N - 1 - c, N - 1 - r),
       vertical: (r) => r,
       horizontal: (_, c) => c,
       spiral: (r, c) => ((r + c) % N) + Math.floor((r + c) / N) * N,
       random: () => Math.random() * N * N,
     };
     const modeNames = Object.keys(modes);
-    const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
+    const pickRandomMode = () =>
+      modeNames[Math.floor(Math.random() * modeNames.length)];
 
     const buildGrid = (container: HTMLElement, mode: string) => {
-      container.innerHTML = '';
-      container.style.display = '';
-      container.style.opacity = '1';
-      container.style.transition = '';
-      const grid = document.createElement('div');
-      grid.className = 'grid';
+      container.innerHTML = "";
+      container.style.display = "";
+      container.style.opacity = "1";
+      container.style.transition = "";
+      const grid = document.createElement("div");
+      grid.className = "grid";
       for (let r = 0; r < N; r++) {
         for (let c = 0; c < N; c++) {
           const fn = modes[mode];
-          const computed = typeof fn === 'function' ? fn(r, c) : 0;
+          const computed = typeof fn === "function" ? fn(r, c) : 0;
           const d = computed.toFixed(3);
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.style.setProperty('--d', d);
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.style.setProperty("--d", d);
           grid.appendChild(cell);
         }
       }
@@ -126,7 +108,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const showPreloader = () => {
-      autoGroup('Show Preloader', () => {
+      autoGroup("Show Preloader", () => {
         fadeOutInProgress = false;
         loadHandled = false;
         if (overallFallbackTimer) {
@@ -134,65 +116,55 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
           overallFallbackTimer = null;
         }
 
-        preloader.style.display = '';
-        preloader.style.opacity = '1';
-        preloader.style.transition = '';
+        preloader.style.display = "";
+        preloader.style.opacity = "1";
+        preloader.style.transition = "";
         preloaderShownAt = performance.now();
 
-        if (useDarkPreloaderThisOpen) {
-          preloader.classList.add('dark-mode');
-        } else {
-          preloader.classList.remove('dark-mode');
-        }
-
         const mode = pickRandomMode();
-        log('Building preloader grid with mode:', mode);
-        time('preloader:build');
+        log("Building preloader grid with mode:", mode);
+        time("preloader:build");
         buildGrid(preloader, mode);
-        timeEnd('preloader:build');
+        timeEnd("preloader:build");
 
-        useDarkPreloaderThisOpen = false;
-
-        eventBus.emit('tally:preloader:show', { mode });
+        eventBus.emit("tally:preloader:show", { mode });
       });
     };
 
     const hidePreloaderImmediate = () => {
-      autoGroup('Hide Preloader Immediate', () => {
-        preloader.innerHTML = '';
-        preloader.style.transition = '';
-        preloader.style.opacity = '';
-        preloader.style.display = 'none';
+      autoGroup("Hide Preloader Immediate", () => {
+        preloader.innerHTML = "";
+        preloader.style.transition = "";
+        preloader.style.opacity = "";
+        preloader.style.display = "none";
         fadeOutInProgress = false;
-        preloader.classList.remove('dark-mode');
         if (overallFallbackTimer) {
           clearTimeout(overallFallbackTimer);
           overallFallbackTimer = null;
         }
-        eventBus.emit('tally:preloader:hide', { method: 'immediate' });
+        eventBus.emit("tally:preloader:hide", { method: "immediate" });
       });
     };
 
     const hidePreloaderWithJSFade = () => {
-      autoGroup('Hide Preloader Fade', () => {
+      autoGroup("Hide Preloader Fade", () => {
         if (fadeOutInProgress) return;
         fadeOutInProgress = true;
 
-        preloader.style.display = '';
-        preloader.style.opacity = '1';
-        preloader.style.transition = 'opacity .4s ease';
-        requestAnimationFrame(() => (preloader.style.opacity = '0'));
+        preloader.style.display = "";
+        preloader.style.opacity = "1";
+        preloader.style.transition = "opacity .4s ease";
+        requestAnimationFrame(() => (preloader.style.opacity = "0"));
 
         let localFallback: ReturnType<typeof setTimeout> | null = null;
 
         const cleanup = () => {
           if (localFallback) clearTimeout(localFallback);
-          preloader.style.transition = '';
-          preloader.style.opacity = '';
-          preloader.style.display = 'none';
-          preloader.innerHTML = '';
+          preloader.style.transition = "";
+          preloader.style.opacity = "";
+          preloader.style.display = "none";
+          preloader.innerHTML = "";
           fadeOutInProgress = false;
-          preloader.classList.remove('dark-mode');
           if (overallFallbackTimer) {
             clearTimeout(overallFallbackTimer);
             overallFallbackTimer = null;
@@ -200,18 +172,18 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         };
 
         const onTransitionEnd = (e: TransitionEvent) => {
-          if (e.propertyName === 'opacity') {
-            preloader.removeEventListener('transitionend', onTransitionEnd as any);
+          if (e.propertyName === "opacity") {
+            preloader.removeEventListener("transitionend", onTransitionEnd as any);
             cleanup();
-            eventBus.emit('tally:preloader:hide', { method: 'fade' });
+            eventBus.emit("tally:preloader:hide", { method: "fade" });
           }
         };
-        preloader.addEventListener('transitionend', onTransitionEnd as any);
+        preloader.addEventListener("transitionend", onTransitionEnd as any);
 
         localFallback = window.setTimeout(() => {
-          preloader.removeEventListener('transitionend', onTransitionEnd as any);
+          preloader.removeEventListener("transitionend", onTransitionEnd as any);
           cleanup();
-          eventBus.emit('tally:preloader:hide', { method: 'fade-fallback' });
+          eventBus.emit("tally:preloader:hide", { method: "fade-fallback" });
         }, 600);
       });
     };
@@ -219,19 +191,21 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     const scheduleHideAfterMinDuration = () => {
       const elapsed = performance.now() - preloaderShownAt;
       const remaining = Math.max(0, minPreloaderMs - elapsed);
-      remaining === 0 ? hidePreloaderWithJSFade() : setTimeout(hidePreloaderWithJSFade, remaining);
+      remaining === 0
+        ? hidePreloaderWithJSFade()
+        : setTimeout(hidePreloaderWithJSFade, remaining);
     };
 
     const trapFocus = (e: KeyboardEvent) => {
       const focusableSelectors =
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
       const focusableEls = Array.from(
         modal.querySelectorAll<HTMLElement>(focusableSelectors)
-      ).filter((el) => !el.hasAttribute('disabled'));
+      ).filter((el) => !el.hasAttribute("disabled"));
       if (!focusableEls.length) return;
       const firstEl = focusableEls[0];
       const lastEl = focusableEls[focusableEls.length - 1];
-      if (e.key === 'Tab') {
+      if (e.key === "Tab") {
         if (e.shiftKey && document.activeElement === firstEl) {
           e.preventDefault();
           lastEl.focus();
@@ -243,87 +217,84 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === "Escape") closeModal();
       else trapFocus(e);
     };
 
+    // ---- Recolour logic ----
+    const recolourDotsLottie = (targetHex: string) => {
+      const container = document.querySelector('[dd-tally="dots"] [dd-lottie]');
+      if (!container) return;
+
+      const svg = container.querySelector("svg");
+      if (!svg) return;
+
+      const [r, g, b] = targetHex
+        .replace("#", "")
+        .match(/.{1,2}/g)!
+        .map((x) => parseInt(x, 16) / 255);
+
+      svg.querySelectorAll("feColorMatrix").forEach((m, i) => {
+        m.setAttribute(
+          "values",
+          `${r} 0 0 0 0
+           0 ${g} 0 0 0
+           0 0 ${b} 0 0
+           0 0 0 1 0`
+        );
+        console.log(`[Tally:tint] Updated matrix #${i + 1}`, { r, g, b });
+      });
+    };
+
+    const maintainDotsTint = (targetHex: string) => {
+      const apply = () => recolourDotsLottie(targetHex);
+      const id = setInterval(apply, 100);
+      eventBus.once("tally:accent:release", () => clearInterval(id));
+    };
+
+    // ---- Modal logic ----
     const openModal = (url: string) => {
-      autoGroup('Open Modal', () => {
-        eventBus.emit('tally:open', { url });
+      autoGroup("Open Modal", () => {
+        eventBus.emit("tally:open", { url });
         showPreloader();
         if (overallFallbackTimer) clearTimeout(overallFallbackTimer);
         loadHandled = false;
-
-        const cleanListeners = () => {
-          iframe.removeEventListener('load', onLoad);
-          iframe.removeEventListener('error', onError);
-          if (overallFallbackTimer) clearTimeout(overallFallbackTimer);
-        };
 
         const onLoad = () => {
           if (loadHandled) return;
           loadHandled = true;
           scheduleHideAfterMinDuration();
-          cleanListeners();
-          log('Tally iframe loaded successfully for', url);
-          eventBus.emit('tally:load:success', { url });
-        };
-        const onError = () => {
-          if (loadHandled) return;
-          loadHandled = true;
-          scheduleHideAfterMinDuration();
-          cleanListeners();
-          logError('Tally iframe failed to load for', url);
-          eventBus.emit('tally:load:error', { url });
+          log("Tally iframe loaded successfully for", url);
+          eventBus.emit("tally:load:success", { url });
         };
 
-        iframe.addEventListener('load', onLoad);
-        iframe.addEventListener('error', onError);
-
-        overallFallbackTimer = setTimeout(() => {
-          if (!loadHandled) {
-            loadHandled = true;
-            hidePreloaderImmediate();
-            eventBus.emit('tally:load:timeout', { url });
-          }
-        }, 5000);
-
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        if (isSafari) {
-          log('🐞 [Safari] Pre-warming embed URL to prevent cached /r/ redirect:', url);
-          fetch(url, { mode: 'no-cors', cache: 'reload' })
-            .then(() => log('✅ [Safari] Pre-warm fetch completed for', url))
-            .catch((err) => warn('⚠️ [Safari] Pre-warm fetch failed:', err));
-        }
-
+        iframe.addEventListener("load", onLoad, { once: true });
         iframe.src = url;
-        modal.classList.add('is-active');
-        document.body.classList.add('no-scroll');
-        modal.setAttribute('aria-hidden', 'false');
+        modal.classList.add("is-active");
+        document.body.classList.add("no-scroll");
+        modal.setAttribute("aria-hidden", "false");
         previousActiveElement = document.activeElement;
         setTimeout(() => closeBtn.focus(), 50);
-        document.addEventListener('keydown', handleKeyDown);
-        eventBus.emit('tally:opened', { url });
+        document.addEventListener("keydown", handleKeyDown);
+        eventBus.emit("tally:opened", { url });
       });
     };
 
     const closeModal = () => {
-      autoGroup('Close Modal', () => {
-        eventBus.emit('tally:close');
-        log('Closing tally modal');
-        modal.classList.remove('is-active');
-        document.body.classList.remove('no-scroll');
-        modal.setAttribute('aria-hidden', 'true');
-        iframe.src = '';
+      autoGroup("Close Modal", () => {
+        eventBus.emit("tally:close");
+        modal.classList.remove("is-active");
+        document.body.classList.remove("no-scroll");
+        modal.setAttribute("aria-hidden", "true");
+        iframe.src = "";
         if (previousActiveElement && (previousActiveElement as HTMLElement).focus)
           (previousActiveElement as HTMLElement).focus();
         if (overallFallbackTimer) clearTimeout(overallFallbackTimer);
         hidePreloaderImmediate();
-        document.removeEventListener('keydown', handleKeyDown);
-        eventBus.emit('tally:closed');
+        document.removeEventListener("keydown", handleKeyDown);
+        eventBus.emit("tally:closed");
         if (accentLockActive) {
-          log('Tally accent lock released on close');
-          eventBus.emit('tally:accent:release');
+          eventBus.emit("tally:accent:release");
           accentLockActive = false;
         }
       });
@@ -335,82 +306,28 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       if (!link) return;
       e.preventDefault();
 
-      const href = (link as HTMLAnchorElement).getAttribute('href') || '';
-      const accentAttr = link.getAttribute('dd-tally-accent');
+      const href = (link as HTMLAnchorElement).getAttribute("href") || "";
+      const accentAttr = link.getAttribute("dd-tally-accent");
       const accentHex = normalizeHexColor(accentAttr);
 
       if (accentHex) {
-        log('Tally accent lock requested from trigger', { raw: accentAttr, normalized: accentHex });
-        eventBus.emit('tally:accent:lock', { hex: accentHex });
+        log("Tally accent lock requested", { accentHex });
+        eventBus.emit("tally:accent:lock", { hex: accentHex });
+        recolourDotsLottie(accentHex);
+        maintainDotsTint(accentHex);
         accentLockActive = true;
-      } else if (accentAttr) warn('Tally accent lock discarded due to invalid hex', accentAttr);
+      }
 
       if (href) openModal(href);
     };
 
-    document.body.addEventListener('click', onBodyClick, true);
-    closeBtn.addEventListener('click', closeModal);
+    document.body.addEventListener("click", onBodyClick, true);
+    closeBtn.addEventListener("click", closeModal);
 
-    // --- DOTS fade behaviour ---
-    if (dots) {
-      log('Tally dots element found; attaching hue event listeners');
-      eventBus.on('faviconHueRotateStepped:locked', (data) => {
-        log('⚡ faviconHueRotateStepped:locked received', data);
-        dots.style.transition = 'opacity 0.4s ease';
-        dots.style.opacity = '1';
-      });
-      eventBus.on('faviconHueRotateStepped:released', () => {
-        log('⚡ faviconHueRotateStepped:released received');
-        dots.style.transition = '';
-        dots.style.opacity = '0';
-      });
-    } else {
-      warn('No [dd-tally="dots"] element found — skipping hue listeners');
-    }
-
-    // --- AUTO-OPEN (GET param) ---
-    const params = new URLSearchParams(window.location.search);
-    const formId = params.get('formId');
-    const accentParam = params.get('accent');
-
-    if (formId) {
-      const url = `https://tally.so/embed/${encodeURIComponent(formId)}`;
-      log('FormId detected, auto-opening:', formId);
-
-      const emitAccentLock = () => {
-        if (accentParam) {
-          const accentHex = normalizeHexColor(`#${accentParam}`);
-          if (accentHex) {
-            log('Accent param detected; emitting tally:accent:lock', accentHex);
-            eventBus.emit('tally:accent:lock', { hex: accentHex });
-            accentLockActive = true;
-          } else warn('Invalid accent param:', accentParam);
-        }
-      };
-
-      let faviconReady = false;
-      const offRunning = eventBus.on('faviconHueRotateStepped:running', () => {
-        faviconReady = true;
-        log('Favicon hue rotate running — lock now');
-        emitAccentLock();
-        offRunning();
-      });
-
-      // Safety timeout
-      setTimeout(() => {
-        if (!faviconReady) {
-          log('Favicon not confirmed ready after delay — emitting anyway');
-          emitAccentLock();
-          offRunning();
-        }
-      }, 1200);
-
-      useDarkPreloaderThisOpen = true;
-      openModal(url);
-    }
+    // Dots fade logic removed entirely
 
     handles = { openModal, closeModal };
-    eventBus.emit('tally:initialized');
+    eventBus.emit("tally:initialized");
   });
 
   return handles;

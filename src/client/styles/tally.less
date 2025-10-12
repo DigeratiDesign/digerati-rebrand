@@ -1,14 +1,10 @@
-// src/client/styles/components/_tally-modal.less
+// src/client/styles/tally.less
 
 // Tally modal “fullscreen” pseudo‐element
 .tally-modal_fullscreen {
 
   &.is-active {
     display: block;
-
-    .tally-modal_preloader {
-      /* JS handles the fade now; remove any animation here */
-    }
   }
 }
 
@@ -26,14 +22,4 @@
 .tally-modal_preloader {
   --bg: #2a2722;
   --disc-front: #ffffff;
-
-  &.dark-mode {
-    --bg: #2a2722;
-    --disc-front: #fff;
-    background: var(--bg);
-
-    .cell::after {
-      background: var(--disc-front);
-    }
-  }
 }
