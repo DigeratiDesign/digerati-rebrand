@@ -70,6 +70,15 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let preloaderShownAt = 0;
     let accentLockActive = false;
 
+    // --- Hue rotation control ---
+    const lockHueRotation = (locked: boolean) => {
+      document.documentElement.style.setProperty(
+        "--favicon-hue-deg",
+        locked ? "0deg" : ""
+      );
+      log(`Hue rotation ${locked ? "locked at 0deg" : "released"}`);
+    };
+
     // --- PRELOADER GRID LOGIC ---
     const N = 11;
     const modes: Record<string, (r: number, c: number) => number> = {
@@ -242,7 +251,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
            0 0 ${b} 0 0
            0 0 0 1 0`
         );
-        console.log(`[Tally:tint] Updated matrix #${i + 1}`, { r, g, b });
+        log(`[Tally:tint] Updated matrix #${i + 1}`, { r, g, b });
       });
     };
 
@@ -295,6 +304,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         eventBus.emit("tally:closed");
         if (accentLockActive) {
           eventBus.emit("tally:accent:release");
+          eventBus.emit("faviconHueRotateStepped:released");
+          lockHueRotation(false);
           accentLockActive = false;
         }
       });
@@ -313,8 +324,10 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       if (accentHex) {
         log("Tally accent lock requested", { accentHex });
         eventBus.emit("tally:accent:lock", { hex: accentHex });
+        eventBus.emit("faviconHueRotateStepped:locked", { hex: accentHex });
         recolourDotsLottie(accentHex);
         maintainDotsTint(accentHex);
+        lockHueRotation(true);
         accentLockActive = true;
       }
 
@@ -324,7 +337,39 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     document.body.addEventListener("click", onBodyClick, true);
     closeBtn.addEventListener("click", closeModal);
 
-    // Dots fade logic removed entirely
+    // --- Auto-open if URL contains formId and optional accent ---
+    const params = new URLSearchParams(window.location.search);
+    const formId = params.get("formId");
+    const accentParam = params.get("accent");
+
+    if (formId) {
+      const tallyUrl = `https://tally.so/embed/${formId}?transparentBackground=1`;
+      log("Tally auto-open from URL params", { tallyUrl, accentParam });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        requestAnimationFrame(() => {
+          if (accentParam) {
+            const accentHex = normalizeHexColor(accentParam);
+            if (accentHex) {
+              log("Tally accent lock from URL param", { accentHex });
+              // 🔥 EXACT SAME FLOW AS CTA CLICK 🔥
+              eventBus.emit("tally:accent:lock", { hex: accentHex });
+              recolourDotsLottie(accentHex);
+              maintainDotsTint(accentHex);
+              accentLockActive = true;
+            }
+          }
+
+          // 🔥 Fire the same hue lock event AFTER the modal opens
+          openModal(tallyUrl);
+          if (accentLockActive) {
+            eventBus.emit("faviconHueRotateStepped:locked");
+            lockHueRotation(true);
+          }
+        });
+      });
+    }
+
 
     handles = { openModal, closeModal };
     eventBus.emit("tally:initialized");
