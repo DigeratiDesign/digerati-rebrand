@@ -69,15 +69,8 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
     let loadHandled = false;
     let preloaderShownAt = 0;
     let accentLockActive = false;
-
-    // --- Hue rotation control ---
-    const lockHueRotation = (locked: boolean) => {
-      document.documentElement.style.setProperty(
-        "--favicon-hue-deg",
-        locked ? "0deg" : ""
-      );
-      log(`Hue rotation ${locked ? "locked at 0deg" : "released"}`);
-    };
+    let lockedHex: string | null = null;
+    let hueGuardId: number | null = null;
 
     // --- PRELOADER GRID LOGIC ---
     const N = 11;
@@ -261,6 +254,57 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       eventBus.once("tally:accent:release", () => clearInterval(id));
     };
 
+    // ---- FORCE hue freeze guard (wins over any other script) ----
+    const startHueFreezeGuard = () => {
+      if (hueGuardId) clearInterval(hueGuardId);
+      hueGuardId = window.setInterval(() => {
+        document.documentElement.style.setProperty("--favicon-hue-deg", "0deg");
+        document.querySelectorAll(".colour-cycle,[data-colour-cycle]").forEach((el) => {
+          const elh = el as HTMLElement;
+          elh.style.animationPlayState = "paused";
+          elh.style.filter = "hue-rotate(0deg)";
+        });
+      }, 60);
+      log("Hue freeze guard started");
+    };
+
+    const stopHueFreezeGuard = () => {
+      if (hueGuardId) {
+        clearInterval(hueGuardId);
+        hueGuardId = null;
+        log("Hue freeze guard stopped");
+      }
+      document.documentElement.style.removeProperty("--favicon-hue-deg");
+      document.querySelectorAll(".colour-cycle,[data-colour-cycle]").forEach((el) => {
+        const elh = el as HTMLElement;
+        elh.style.animationPlayState = "";
+        elh.style.filter = "";
+      });
+    };
+
+    // ---- Unified accent lock/release helpers ----
+    const lockAccent = (hex: string) => {
+      lockedHex = hex;
+      accentLockActive = true;
+      eventBus.emit("tally:accent:lock", { hex });
+      eventBus.emit("faviconHueRotateStepped:locked", { hex });
+      startHueFreezeGuard(); // <- guarantees stop even if listener misses
+      document.documentElement.style.setProperty("--favicon-hue-deg", "0deg");
+      recolourDotsLottie(hex);
+      maintainDotsTint(hex);
+      log("Accent locked", { hex });
+    };
+
+    const releaseAccent = () => {
+      if (!accentLockActive) return;
+      eventBus.emit("tally:accent:release");
+      eventBus.emit("faviconHueRotateStepped:released");
+      stopHueFreezeGuard();
+      accentLockActive = false;
+      lockedHex = null;
+      log("Accent released");
+    };
+
     // ---- Modal logic ----
     const openModal = (url: string) => {
       autoGroup("Open Modal", () => {
@@ -302,15 +346,11 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
         hidePreloaderImmediate();
         document.removeEventListener("keydown", handleKeyDown);
         eventBus.emit("tally:closed");
-        if (accentLockActive) {
-          eventBus.emit("tally:accent:release");
-          eventBus.emit("faviconHueRotateStepped:released");
-          lockHueRotation(false);
-          accentLockActive = false;
-        }
+        releaseAccent();
       });
     };
 
+    // ---- CTA click handler ----
     const onBodyClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const link = target.closest<HTMLElement>(SELECTORS.trigger);
@@ -321,16 +361,7 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       const accentAttr = link.getAttribute("dd-tally-accent");
       const accentHex = normalizeHexColor(accentAttr);
 
-      if (accentHex) {
-        log("Tally accent lock requested", { accentHex });
-        eventBus.emit("tally:accent:lock", { hex: accentHex });
-        eventBus.emit("faviconHueRotateStepped:locked", { hex: accentHex });
-        recolourDotsLottie(accentHex);
-        maintainDotsTint(accentHex);
-        lockHueRotation(true);
-        accentLockActive = true;
-      }
-
+      if (accentHex) lockAccent(accentHex);
       if (href) openModal(href);
     };
 
@@ -347,29 +378,17 @@ export const tally = (minPreloaderMs: number = 1500): TallyHandles => {
       log("Tally auto-open from URL params", { tallyUrl, accentParam });
 
       window.addEventListener("DOMContentLoaded", () => {
-        requestAnimationFrame(() => {
+        // small delay so other scripts can boot, then we forcibly freeze anyway
+        setTimeout(() => {
+          let accentHex: string | null = null;
           if (accentParam) {
-            const accentHex = normalizeHexColor(accentParam);
-            if (accentHex) {
-              log("Tally accent lock from URL param", { accentHex });
-              // 🔥 EXACT SAME FLOW AS CTA CLICK 🔥
-              eventBus.emit("tally:accent:lock", { hex: accentHex });
-              recolourDotsLottie(accentHex);
-              maintainDotsTint(accentHex);
-              accentLockActive = true;
-            }
+            accentHex = normalizeHexColor(accentParam);
+            if (accentHex) lockAccent(accentHex);
           }
-
-          // 🔥 Fire the same hue lock event AFTER the modal opens
           openModal(tallyUrl);
-          if (accentLockActive) {
-            eventBus.emit("faviconHueRotateStepped:locked");
-            lockHueRotation(true);
-          }
-        });
+        }, 150);
       });
     }
-
 
     handles = { openModal, closeModal };
     eventBus.emit("tally:initialized");
