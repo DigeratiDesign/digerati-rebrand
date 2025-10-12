@@ -173,22 +173,30 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                 eventBus.emit("tally:open", { id, accentHex });
                 log("Opened modal", { id, accentHex });
 
-                let preloaderShownAt = 0;
-
+                // --- updated preloader logic ---
                 if (preloader && iframe) {
-                    preloaderShownAt = showPreloader(preloader);
-                    iframe.addEventListener(
-                        "load",
-                        () => waitForIframeHeight(iframe, preloader, preloaderShownAt),
-                        { once: true }
-                    );
+                    const currentHeight =
+                        parseInt(iframe.getAttribute("height") || "0") ||
+                        parseInt(iframe.style.height || "0");
+
+                    if (currentHeight > 0) {
+                        // iframe already loaded → skip preloader
+                        preloader.style.display = "none";
+                        log("Skipping preloader (iframe already loaded)");
+                    } else {
+                        // first open → show preloader until iframe height appears
+                        const preloaderShownAt = showPreloader(preloader);
+                        iframe.addEventListener(
+                            "load",
+                            () => waitForIframeHeight(iframe, preloader, preloaderShownAt),
+                            { once: true }
+                        );
+                    }
                 }
 
                 const closeBtn = modal.querySelector<HTMLElement>(SELECTORS.close);
                 if (closeBtn) {
-                    closeBtn.addEventListener("click", () => closeModal(modal), {
-                        once: true,
-                    });
+                    closeBtn.addEventListener("click", () => closeModal(modal), { once: true });
                 }
 
                 const handleKey = (e: KeyboardEvent) => {
@@ -201,7 +209,7 @@ export const tally = (minPreloaderMs: number = 1000): void => {
         const closeModal = (modal: HTMLElement): void => {
             autoGroup("Close Tally Modal", () => {
                 const preloader = modal.querySelector<HTMLElement>(SELECTORS.preloader);
-                const iframe = modal.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
+                // const iframe = modal.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
 
                 if (preloader) {
                     preloader.style.display = "none";
@@ -210,7 +218,7 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                     eventBus.emit("tally:preloader:hide");
                 }
 
-                if (iframe) iframe.src = "";
+                // ❌ Do not clear iframe.src — we keep the same form instance
 
                 modal.style.display = "none";
                 modal.classList.remove("is-active");
@@ -223,18 +231,16 @@ export const tally = (minPreloaderMs: number = 1000): void => {
         };
 
         // ---- Listen for Tally form submission (inside iframe) ----
-        // ---- Listen for Tally form submission (inside iframe) ----
         window.addEventListener("message", (event) => {
             if (!event.origin.includes("tally.so")) return;
 
             let data = event.data;
 
-            // Try to parse stringified JSON
             if (typeof data === "string") {
                 try {
                     data = JSON.parse(data);
                 } catch {
-                    return; // not JSON, ignore
+                    return;
                 }
             }
 
@@ -291,7 +297,6 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                 textEl.textContent = "Abort";
                 log("✅ Label reset to:", textEl.textContent?.trim());
             } else if (closeBtn) {
-                // fallback if structure changes
                 log("🔍 Current button text before reset:", closeBtn.textContent?.trim());
                 closeBtn.textContent = "Abort";
                 log("⚠️ Fallback reset applied on button directly");
@@ -300,13 +305,13 @@ export const tally = (minPreloaderMs: number = 1000): void => {
             }
         });
 
-
         // ---- Trigger click handling ----
         document.body.addEventListener("click", (e) => {
             const target = (e.target as HTMLElement).closest(SELECTORS.trigger);
             if (!target) return;
 
             e.preventDefault();
+
             const formId = target.getAttribute("dd-tally-form-id");
             const accentAttr = target.getAttribute("dd-tally-accent");
             const accentHex = normalizeHexColor(accentAttr);
@@ -316,13 +321,7 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                 return;
             }
 
-            const modal = document.getElementById(formId);
-            const iframe = modal?.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
-            if (iframe) {
-                const tallyUrl = `https://tally.so/embed/${formId}?dynamicHeight=1`;
-                iframe.src = tallyUrl;
-            }
-
+            // ✅ iframe already has its src set in markup, no need to reassign
             openModal(formId, accentHex);
         });
 
@@ -337,12 +336,6 @@ export const tally = (minPreloaderMs: number = 1000): void => {
 
             window.addEventListener("DOMContentLoaded", () => {
                 setTimeout(() => {
-                    const modal = document.getElementById(formId);
-                    const iframe = modal?.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
-                    if (iframe) {
-                        const tallyUrl = `https://tally.so/embed/${formId}?dynamicHeight=1`;
-                        iframe.src = tallyUrl;
-                    }
                     openModal(formId, accentHex);
                 }, 150);
             });
