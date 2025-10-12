@@ -162,7 +162,6 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                 }
 
                 const preloader = modal.querySelector<HTMLElement>(SELECTORS.preloader);
-                const iframe = modal.querySelector<HTMLIFrameElement>(SELECTORS.iframe);
 
                 hideAllModals();
                 modal.style.display = "block";
@@ -173,25 +172,11 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                 eventBus.emit("tally:open", { id, accentHex });
                 log("Opened modal", { id, accentHex });
 
-                // --- updated preloader logic ---
-                if (preloader && iframe) {
-                    const currentHeight =
-                        parseInt(iframe.getAttribute("height") || "0") ||
-                        parseInt(iframe.style.height || "0");
-
-                    if (currentHeight > 0) {
-                        // iframe already loaded → skip preloader
-                        preloader.style.display = "none";
-                        log("Skipping preloader (iframe already loaded)");
-                    } else {
-                        // first open → show preloader until iframe height appears
-                        const preloaderShownAt = showPreloader(preloader);
-                        iframe.addEventListener(
-                            "load",
-                            () => waitForIframeHeight(iframe, preloader, preloaderShownAt),
-                            { once: true }
-                        );
-                    }
+                // --- Preloader always shows for at least minPreloaderMs ---
+                if (preloader) {
+                    const shownAt = showPreloader(preloader);
+                    log(`Showing preloader for ${minPreloaderMs}ms`);
+                    setTimeout(() => hidePreloader(preloader, shownAt), minPreloaderMs);
                 }
 
                 const closeBtn = modal.querySelector<HTMLElement>(SELECTORS.close);
@@ -205,6 +190,7 @@ export const tally = (minPreloaderMs: number = 1000): void => {
                 document.addEventListener("keydown", handleKey, { once: true });
             });
         };
+
 
         const closeModal = (modal: HTMLElement): void => {
             autoGroup("Close Tally Modal", () => {
