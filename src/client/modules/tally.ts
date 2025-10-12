@@ -222,6 +222,85 @@ export const tally = (minPreloaderMs: number = 1000): void => {
             });
         };
 
+        // ---- Listen for Tally form submission (inside iframe) ----
+        // ---- Listen for Tally form submission (inside iframe) ----
+        window.addEventListener("message", (event) => {
+            if (!event.origin.includes("tally.so")) return;
+
+            let data = event.data;
+
+            // Try to parse stringified JSON
+            if (typeof data === "string") {
+                try {
+                    data = JSON.parse(data);
+                } catch {
+                    return; // not JSON, ignore
+                }
+            }
+
+            log("Tally message received (parsed)", data);
+
+            if (data?.event === "Tally.FormSubmitted" && data?.payload) {
+                const payload = data.payload;
+                log("🎉 Tally form submitted:", payload);
+
+                const activeModal = document.querySelector<HTMLElement>(
+                    `${SELECTORS.modal}.is-active`
+                );
+                const closeBtn = activeModal?.querySelector<HTMLElement>(SELECTORS.close);
+                const textEl = closeBtn?.querySelector<HTMLElement>(
+                    ".button-text-50.is-default"
+                );
+
+                log("🔍 Lookup results", {
+                    activeModalFound: !!activeModal,
+                    closeBtnFound: !!closeBtn,
+                    textElFound: !!textEl,
+                });
+
+                if (textEl) {
+                    log("🔍 Current label text before change:", textEl.textContent?.trim());
+                    textEl.textContent = "Close";
+                    log("✅ Updated label text after change:", textEl.textContent?.trim());
+                } else if (closeBtn) {
+                    log("🔍 Current button text before change:", closeBtn.textContent?.trim());
+                    closeBtn.textContent = "Close";
+                    log("✅ Updated button text after change:", closeBtn.textContent?.trim());
+                } else {
+                    warn("⚠️ No close button or text element found inside modal");
+                }
+
+                eventBus.emit("tally:form:submitted", payload);
+            }
+        });
+
+        // ---- Reset close button label when modal closes ----
+        eventBus.on("tally:close", ({ id }) => {
+            const modal = document.getElementById(id);
+            const closeBtn = modal?.querySelector<HTMLElement>(SELECTORS.close);
+            const textEl = closeBtn?.querySelector<HTMLElement>(".button-text-50.is-default");
+
+            log("🔄 Resetting close button label", {
+                modalFound: !!modal,
+                closeBtnFound: !!closeBtn,
+                textElFound: !!textEl,
+            });
+
+            if (textEl) {
+                log("🔍 Current label text before reset:", textEl.textContent?.trim());
+                textEl.textContent = "Abort";
+                log("✅ Label reset to:", textEl.textContent?.trim());
+            } else if (closeBtn) {
+                // fallback if structure changes
+                log("🔍 Current button text before reset:", closeBtn.textContent?.trim());
+                closeBtn.textContent = "Abort";
+                log("⚠️ Fallback reset applied on button directly");
+            } else {
+                warn("⚠️ No close button or label element found while resetting");
+            }
+        });
+
+
         // ---- Trigger click handling ----
         document.body.addEventListener("click", (e) => {
             const target = (e.target as HTMLElement).closest(SELECTORS.trigger);
