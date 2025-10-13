@@ -20774,64 +20774,97 @@
     preloader: '[dd-tally="preloader"]',
     iframe: '[dd-tally="iframe"]'
   };
+  var SHOW_PRELOADER_ON_OPEN = false;
+  var SHOW_PRELOADER_BETWEEN_PAGES = true;
+  var PROVISIONAL_DELAY_MS = 120;
+  var DEBUG_RESIZE = true;
+  var DEBUG_RESIZE_OBSERVER = false;
+  var _openedAt = 0;
+  var _lastCollapseAt = 0;
+  var dlog = (...args) => {
+    if (DEBUG_RESIZE)
+      log("[TallyDebug]", ...args);
+  };
+  var since = (t0) => `${Math.round(performance.now() - t0)}ms`;
+  var snapshotHeights = (iframe) => ({
+    styleHeight: iframe.style.height || "(unset)",
+    attrHeight: iframe.getAttribute("height") || "(unset)",
+    offsetHeight: iframe.offsetHeight,
+    clientHeight: iframe.clientHeight
+  });
+  var stateByIframe = /* @__PURE__ */ new WeakMap();
+  var getOrInitState = (iframe) => {
+    let s = stateByIframe.get(iframe);
+    if (!s) {
+      s = { cycleStartedAt: 0, lastHeightAt: 0, provisionalTimer: null, preloaderShownAt: null };
+      stateByIframe.set(iframe, s);
+    }
+    return s;
+  };
+  var buildGrid = (container, N = 11, mode = "random") => {
+    const modes = {
+      topRight: (r, c) => Math.hypot(r, N - 1 - c),
+      topLeft: (r, c) => Math.hypot(r, c),
+      bottomLeft: (r, c) => Math.hypot(N - 1 - r, c),
+      bottomRight: (r, c) => Math.hypot(N - 1 - c, N - 1 - r),
+      vertical: (r) => r,
+      horizontal: (_, c) => c,
+      spiral: (r, c) => (r + c) % N + Math.floor((r + c) / N) * N,
+      random: () => Math.random() * N * N
+    };
+    container.innerHTML = "";
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const fn = modes[mode] || modes.random;
+        const d = fn(r, c).toFixed(3);
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.style.setProperty("--d", d);
+        grid.appendChild(cell);
+      }
+    }
+    container.appendChild(grid);
+  };
+  var pickRandomMode = () => ["topRight", "topLeft", "bottomLeft", "bottomRight", "vertical", "horizontal", "spiral", "random"][Math.floor(Math.random() * 8)];
+  var showPreloader = (preloader) => {
+    preloader.style.display = "flex";
+    preloader.style.opacity = "1";
+    preloader.style.transition = "";
+    buildGrid(preloader, 11, pickRandomMode());
+    eventBus.emit("tally:preloader:show");
+    dlog("Preloader SHOW");
+    return performance.now();
+  };
+  var hidePreloader = (preloader, shownAt, minPreloaderMs) => {
+    const elapsed = performance.now() - shownAt;
+    const remaining = Math.max(0, minPreloaderMs - elapsed);
+    setTimeout(() => {
+      preloader.style.transition = "opacity 0.4s ease";
+      preloader.style.opacity = "0";
+      const cleanup = () => {
+        preloader.style.display = "none";
+        preloader.style.transition = "";
+        preloader.innerHTML = "";
+        preloader.removeEventListener("transitionend", cleanup);
+        eventBus.emit("tally:preloader:hide");
+        dlog("Preloader HIDE", { elapsed: `${Math.round(elapsed)}ms` });
+      };
+      preloader.addEventListener("transitionend", cleanup, { once: true });
+    }, remaining);
+  };
   var tally = (minPreloaderMs = 1e3) => {
     autoGroup("Tally Init", () => {
       const triggers = document.querySelectorAll(SELECTORS.trigger);
       const modals = document.querySelectorAll(SELECTORS.modal);
-      log("Found Tally elements", {
-        triggers: triggers.length,
-        modals: modals.length
-      });
+      log("Found Tally elements", { triggers: triggers.length, modals: modals.length });
       if (!triggers.length || !modals.length) {
         warn("No Tally triggers or modals found; aborting init.");
         return;
       }
-      const getActiveIframe = () => document.querySelector(`${SELECTORS.modal}.is-active`)?.querySelector(SELECTORS.iframe) ?? null;
-      const collapseOneTick = (iframe) => {
-        const old = iframe.style.height;
-        iframe.style.transition = "none";
-        iframe.style.minHeight = "0";
-        iframe.style.height = "0px";
-        log("[TallyResizer] collapse\u21920 (one tick)");
-        requestAnimationFrame(() => {
-          iframe.style.height = old;
-          log("[TallyResizer] restore\u2192", old || "(unset)");
-        });
-      };
-      const applyProvisionalHeight = (iframe) => {
-        const px = Math.min(window.innerHeight, 480) + "px";
-        iframe.style.height = px;
-        log("[TallyResizer] provisional height\u2192", px);
-      };
-      const N = 11;
-      const modes = {
-        topRight: (r, c) => Math.hypot(r, N - 1 - c),
-        topLeft: (r, c) => Math.hypot(r, c),
-        bottomLeft: (r, c) => Math.hypot(N - 1 - r, c),
-        bottomRight: (r, c) => Math.hypot(N - 1 - c, N - 1 - r),
-        vertical: (r) => r,
-        horizontal: (_, c) => c,
-        spiral: (r, c) => (r + c) % N + Math.floor((r + c) / N) * N,
-        random: () => Math.random() * N * N
-      };
-      const modeNames = Object.keys(modes);
-      const pickRandomMode = () => modeNames[Math.floor(Math.random() * modeNames.length)];
-      const buildGrid = (container, mode) => {
-        container.innerHTML = "";
-        const grid = document.createElement("div");
-        grid.className = "grid";
-        for (let r = 0; r < N; r++) {
-          for (let c = 0; c < N; c++) {
-            const fn = modes[mode];
-            const d = fn ? fn(r, c).toFixed(3) : "0";
-            const cell = document.createElement("div");
-            cell.className = "cell";
-            cell.style.setProperty("--d", d);
-            grid.appendChild(cell);
-          }
-        }
-        container.appendChild(grid);
-      };
+      const getActiveModal = () => document.querySelector(`${SELECTORS.modal}.is-active`) ?? null;
+      const getActiveIframe = () => getActiveModal()?.querySelector(SELECTORS.iframe) ?? null;
       const lockColourCycle = (accentHex) => {
         if (accentHex) {
           eventBus.emit("tally:accent:lock", { hex: accentHex });
@@ -20848,48 +20881,56 @@
         eventBus.emit("faviconHueRotateStepped:released");
         log("Colour cycling released");
       };
-      const showPreloader = (preloader) => {
-        preloader.style.display = "flex";
-        preloader.style.opacity = "1";
-        preloader.style.transition = "";
-        const mode = pickRandomMode();
-        buildGrid(preloader, mode);
-        eventBus.emit("tally:preloader:show", { mode });
-        log("Preloader shown", { mode });
-        return performance.now();
+      const collapseOneTickStealth = (iframe) => {
+        const before = snapshotHeights(iframe);
+        const old = iframe.style.height;
+        iframe.style.transition = "none";
+        iframe.style.minHeight = "0";
+        iframe.style.opacity = "0";
+        iframe.style.height = "0px";
+        _lastCollapseAt = performance.now();
+        dlog("[collapseOneTick] \u2192 0px & fade", { before });
+        requestAnimationFrame(() => {
+          iframe.style.height = old;
+          const after = snapshotHeights(iframe);
+          dlog("[collapseOneTick] restored old (still faded)", { old: old || "(unset)", after });
+        });
       };
-      const hidePreloader = (preloader, shownAt) => {
-        const elapsed = performance.now() - shownAt;
-        const remaining = Math.max(0, minPreloaderMs - elapsed);
-        setTimeout(() => {
-          preloader.style.transition = "opacity 0.4s ease";
-          preloader.style.opacity = "0";
-          const cleanup = () => {
-            preloader.style.display = "none";
-            preloader.style.transition = "";
-            preloader.innerHTML = "";
-            preloader.removeEventListener("transitionend", cleanup);
-            eventBus.emit("tally:preloader:hide");
-            log("Preloader hidden");
-          };
-          preloader.addEventListener("transitionend", cleanup, { once: true });
-        }, remaining);
+      const applyProvisionalHeight = (iframe) => {
+        const s = getOrInitState(iframe);
+        if (s.lastHeightAt > 0 && s.lastHeightAt > s.cycleStartedAt) {
+          dlog("[provisionalHeight] SKIP (height already applied)");
+          return;
+        }
+        const px = Math.min(window.innerHeight, 480) + "px";
+        const before = snapshotHeights(iframe);
+        iframe.style.height = px;
+        const after = snapshotHeights(iframe);
+        dlog("[provisionalHeight] applied", {
+          px,
+          before,
+          after,
+          sinceCollapse: since(_lastCollapseAt),
+          sinceOpen: since(_openedAt)
+        });
       };
-      const waitForIframeHeight = (iframe, preloader, shownAt) => {
-        const check = () => {
-          const hAttr = iframe.getAttribute("height");
-          const styleH = iframe.style.height;
-          const heightValue = hAttr && parseInt(hAttr) || styleH && parseInt(styleH);
-          if (heightValue && heightValue > 0) {
-            hidePreloader(preloader, shownAt);
-          } else {
-            requestAnimationFrame(check);
-          }
-        };
-        requestAnimationFrame(check);
+      const revealIframe = (iframe) => {
+        requestAnimationFrame(() => {
+          iframe.style.opacity = "1";
+          dlog("[revealIframe] opacity\u21921", snapshotHeights(iframe));
+        });
       };
       const hideAllModals = () => {
         modals.forEach((m) => {
+          if (m._preloaderTimer) {
+            clearTimeout(m._preloaderTimer);
+            delete m._preloaderTimer;
+          }
+          const ro = m._dbgRO;
+          if (ro) {
+            ro.disconnect();
+            delete m._dbgRO;
+          }
           m.style.display = "none";
           m.classList.remove("is-active");
         });
@@ -20903,37 +20944,72 @@
             return;
           }
           const preloader = modal.querySelector(SELECTORS.preloader);
+          const iframeEl = modal.querySelector(SELECTORS.iframe);
           hideAllModals();
           modal.style.display = "block";
           modal.classList.add("is-active");
           document.body.classList.add("no-scroll");
+          _openedAt = performance.now();
+          if (iframeEl) {
+            iframeEl.style.willChange = "height, opacity";
+            iframeEl.style.transition = "opacity 120ms ease, height 0s";
+            iframeEl.style.minHeight = "0";
+            iframeEl.style.opacity = "1";
+            iframeEl.style.display = "block";
+            iframeEl.style.width = "100%";
+            iframeEl.style.border = "0";
+          }
           lockColourCycle(accentHex);
           eventBus.emit("tally:open", { id, accentHex });
           log("Opened modal", { id, accentHex });
-          if (preloader) {
+          if (SHOW_PRELOADER_ON_OPEN && preloader) {
             const shownAt = showPreloader(preloader);
-            log(`Showing preloader for ${minPreloaderMs}ms`);
-            setTimeout(() => hidePreloader(preloader, shownAt), minPreloaderMs);
+            modal._preloaderShownAt = shownAt;
           }
           const closeBtn = modal.querySelector(SELECTORS.close);
-          if (closeBtn) {
+          if (closeBtn)
             closeBtn.addEventListener("click", () => closeModal(modal), { once: true });
-          }
           const handleKey = (e) => {
             if (e.key === "Escape")
               closeModal(modal);
           };
           document.addEventListener("keydown", handleKey, { once: true });
+          if (DEBUG_RESIZE_OBSERVER && iframeEl) {
+            let prev = iframeEl.offsetHeight;
+            const ro = new ResizeObserver(() => {
+              const now = iframeEl.offsetHeight;
+              if (now !== prev) {
+                dlog("[RO] iframe offsetHeight change", {
+                  from: prev,
+                  to: now,
+                  sinceCollapse: since(_lastCollapseAt),
+                  sinceOpen: since(_openedAt)
+                });
+                prev = now;
+              }
+            });
+            ro.observe(iframeEl);
+            modal._dbgRO = ro;
+          }
         });
       };
       const closeModal = (modal) => {
         autoGroup("Close Tally Modal", () => {
+          if (modal._preloaderTimer) {
+            clearTimeout(modal._preloaderTimer);
+            delete modal._preloaderTimer;
+          }
           const preloader = modal.querySelector(SELECTORS.preloader);
           if (preloader) {
             preloader.style.display = "none";
             preloader.style.opacity = "0";
             preloader.innerHTML = "";
             eventBus.emit("tally:preloader:hide");
+          }
+          const ro = modal._dbgRO;
+          if (ro) {
+            ro.disconnect();
+            delete modal._dbgRO;
           }
           modal.style.display = "none";
           modal.classList.remove("is-active");
@@ -20944,82 +21020,127 @@
         });
       };
       window.addEventListener("message", (event) => {
-        if (!event.origin.includes("tally.so"))
-          return;
-        let data2 = event.data;
-        if (typeof data2 === "string") {
-          try {
-            data2 = JSON.parse(data2);
-          } catch {
+        try {
+          const host = new URL(event.origin).hostname;
+          if (!/(\.|^)tally\.so$/i.test(host))
             return;
+        } catch {
+          return;
+        }
+        const raw = event.data;
+        let data2 = raw;
+        if (typeof raw === "string") {
+          try {
+            data2 = JSON.parse(raw);
+          } catch {
           }
         }
         log("Tally message received (parsed)", data2);
         const iframe = getActiveIframe();
         if (!iframe)
           return;
-        if (data2?.type === "tally:page-view" || data2?.event === "Tally.FormPageView" || // ← important
-        data2?.event === "Tally.PageView" || data2?.event === "Tally.PageChange") {
-          collapseOneTick(iframe);
-          setTimeout(() => {
+        if (data2?.type === "tally:page-view" || data2?.event === "Tally.FormPageView" || data2?.event === "Tally.PageView" || data2?.event === "Tally.PageChange") {
+          dlog("[page-view] collapse");
+          collapseOneTickStealth(iframe);
+          const s = getOrInitState(iframe);
+          s.cycleStartedAt = performance.now();
+          s.lastHeightAt = 0;
+          const modal = getActiveModal();
+          const pre = modal?.querySelector(SELECTORS.preloader);
+          if (SHOW_PRELOADER_BETWEEN_PAGES && pre) {
+            s.preloaderShownAt = showPreloader(pre);
+            dlog("[page-view] inter-page preloader SHOW");
+          } else {
+            s.preloaderShownAt = null;
+          }
+          if (s.provisionalTimer) {
+            clearTimeout(s.provisionalTimer);
+            s.provisionalTimer = null;
+          }
+          s.provisionalTimer = window.setTimeout(() => {
+            if (s.lastHeightAt > 0 && s.lastHeightAt > s.cycleStartedAt) {
+              dlog("[page-view] provisional SKIPPED (real height already applied)", {
+                sinceCollapse: since(_lastCollapseAt),
+                sinceHeight: since(s.lastHeightAt)
+              });
+              return;
+            }
+            dlog("[page-view] provisional height timeout @", since(_lastCollapseAt));
             applyProvisionalHeight(iframe);
-          }, 120);
+          }, PROVISIONAL_DELAY_MS);
           return;
+        }
+        if (typeof raw === "string") {
+          if (/\[iFrameResizerChild\]Ready/i.test(raw)) {
+            dlog("[iFrameResizer] Ready (no height yet)");
+            return;
+          }
+          const m = raw.match(/iFrameResizer\d+:(\d+(?:\.\d+)?):(\d+(?:\.\d+)?):([a-zA-Z]+)/i) || raw.match(/iFrameSizer\]iFrameResizer\d+:(\d+(?:\.\d+)?):(\d+(?:\.\d+)?):([a-zA-Z]+)/i);
+          if (m) {
+            const h = Math.ceil(Number(m[1] || 0));
+            const w = Math.ceil(Number(m[2] || 0));
+            const kind = m[3] || "(unknown)";
+            dlog("[iFrameResizer] parsed", { height: h, width: w, kind, sinceCollapse: since(_lastCollapseAt), sinceOpen: since(_openedAt) });
+            if (h > 0) {
+              const s = getOrInitState(iframe);
+              s.lastHeightAt = performance.now();
+              if (s.provisionalTimer) {
+                clearTimeout(s.provisionalTimer);
+                s.provisionalTimer = null;
+                dlog("[height] cancelled provisional timer");
+              }
+              const before = snapshotHeights(iframe);
+              const px = `${h}px`;
+              iframe.style.height = px;
+              const after = snapshotHeights(iframe);
+              dlog("[height\u2192apply] (iFrameResizer)", { px, before, after });
+              revealIframe(iframe);
+              const modal = getActiveModal();
+              const pre = modal?.querySelector(SELECTORS.preloader);
+              if (pre && s.preloaderShownAt != null) {
+                hidePreloader(pre, s.preloaderShownAt, minPreloaderMs);
+                dlog("[height] inter-page preloader HIDE");
+                s.preloaderShownAt = null;
+              }
+            }
+            return;
+          } else {
+            dlog("[iFrameResizer] string (no match)", raw);
+          }
         }
         const heightVal = typeof data2?.payload === "number" && data2.payload || typeof data2?.height === "number" && data2.height || typeof data2?.payload?.height === "number" && data2.payload.height || typeof data2?.payload?.documentHeight === "number" && data2.payload.documentHeight || null;
         if (heightVal != null) {
+          const s = getOrInitState(iframe);
+          s.lastHeightAt = performance.now();
+          if (s.provisionalTimer) {
+            clearTimeout(s.provisionalTimer);
+            s.provisionalTimer = null;
+            dlog("[height] cancelled provisional timer");
+          }
+          const before = snapshotHeights(iframe);
           const px = Math.max(0, Number(heightVal)) + "px";
           iframe.style.height = px;
-          log("[TallyResizer] height\u2192", px);
+          const after = snapshotHeights(iframe);
+          dlog("[height\u2192apply] (JSON)", { px, before, after, sinceCollapse: since(_lastCollapseAt), sinceOpen: since(_openedAt) });
+          revealIframe(iframe);
+          const modal = getActiveModal();
+          const pre = modal?.querySelector(SELECTORS.preloader);
+          if (pre && s.preloaderShownAt != null) {
+            hidePreloader(pre, s.preloaderShownAt, minPreloaderMs);
+            dlog("[height] inter-page preloader HIDE");
+            s.preloaderShownAt = null;
+          }
         }
         if (data2?.event === "Tally.FormSubmitted" && data2?.payload) {
-          const payload = data2.payload;
-          log("\u{1F389} Tally form submitted:", payload);
-          const activeModal = document.querySelector(
-            `${SELECTORS.modal}.is-active`
-          );
+          const activeModal = getActiveModal();
           const closeBtn = activeModal?.querySelector(SELECTORS.close);
-          const textEl = closeBtn?.querySelector(
-            ".button-text-50.is-default"
-          );
-          log("\u{1F50D} Lookup results", {
-            activeModalFound: !!activeModal,
-            closeBtnFound: !!closeBtn,
-            textElFound: !!textEl
-          });
-          if (textEl) {
-            log("\u{1F50D} Current label text before change:", textEl.textContent?.trim());
+          const textEl = closeBtn?.querySelector(".button-text-50.is-default");
+          if (textEl)
             textEl.textContent = "Close";
-            log("\u2705 Updated label text after change:", textEl.textContent?.trim());
-          } else if (closeBtn) {
-            log("\u{1F50D} Current button text before change:", closeBtn.textContent?.trim());
+          else if (closeBtn)
             closeBtn.textContent = "Close";
-            log("\u2705 Updated button text after change:", closeBtn.textContent?.trim());
-          } else {
-            warn("\u26A0\uFE0F No close button or text element found inside modal");
-          }
-          eventBus.emit("tally:form:submitted", payload);
-        }
-      });
-      eventBus.on("tally:close", ({ id }) => {
-        const modal = document.getElementById(id);
-        const closeBtn = modal?.querySelector(SELECTORS.close);
-        const textEl = closeBtn?.querySelector(".button-text-50.is-default");
-        log("\u{1F504} Resetting close button label", {
-          modalFound: !!modal,
-          closeBtnFound: !!closeBtn,
-          textElFound: !!textEl
-        });
-        if (textEl) {
-          log("\u{1F50D} Current label text before reset:", textEl.textContent?.trim());
-          textEl.textContent = "Abort";
-          log("\u2705 Label reset to:", textEl.textContent?.trim());
-        } else if (closeBtn) {
-          log("\u{1F50D} Current button text before reset:", closeBtn.textContent?.trim());
-          closeBtn.textContent = "Abort";
-          log("\u26A0\uFE0F Fallback reset applied on button directly");
-        } else {
-          warn("\u26A0\uFE0F No close button or label element found while resetting");
+          eventBus.emit("tally:form:submitted", data2.payload);
+          dlog("[submitted] set close label \u2192 'Close'");
         }
       });
       document.body.addEventListener("click", (e) => {
