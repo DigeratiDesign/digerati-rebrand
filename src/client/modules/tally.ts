@@ -41,6 +41,34 @@ export const tally = (minPreloaderMs: number = 1000): void => {
             return;
         }
 
+        // --- active iframe + one-tick collapse with provisional fallback ---
+        const getActiveIframe = (): HTMLIFrameElement | null =>
+            document.querySelector<HTMLElement>(`${SELECTORS.modal}.is-active`)
+                ?.querySelector<HTMLIFrameElement>(SELECTORS.iframe) ?? null;
+
+        const collapseOneTick = (iframe: HTMLIFrameElement): void => {
+            const old = iframe.style.height;                 // remember current inline height
+            iframe.style.transition = 'none';
+            iframe.style.minHeight = '0';
+            iframe.style.height = '0px';
+            log('[TallyResizer] collapse→0 (one tick)');
+
+            // Immediately restore previous height next frame (prevents visible snap),
+            // then we’ll set the *true* height when/if Tally sends it.
+            requestAnimationFrame(() => {
+                iframe.style.height = old;
+                log('[TallyResizer] restore→', old || '(unset)');
+            });
+        };
+
+        // Fallback height if we don't receive a height message quickly
+        const applyProvisionalHeight = (iframe: HTMLIFrameElement): void => {
+            const px = Math.min(window.innerHeight, 480) + 'px';
+            iframe.style.height = px;
+            log('[TallyResizer] provisional height→', px);
+        };
+
+
         // ---- Grid animation helpers ----
         const N = 11;
         const modes: Record<string, (r: number, c: number) => number> = {
@@ -231,6 +259,45 @@ export const tally = (minPreloaderMs: number = 1000): void => {
             }
 
             log("Tally message received (parsed)", data);
+            // --- NEW: handle page changes (collapse) + height updates (resize) ---
+
+            const iframe = getActiveIframe();
+            if (!iframe) return;
+
+            // A) PAGE CHANGE → collapse now (handles your event name)
+            if (
+                data?.type === 'tally:page-view' ||
+                data?.event === 'Tally.FormPageView' ||       // ← important
+                data?.event === 'Tally.PageView' ||
+                data?.event === 'Tally.PageChange'
+            ) {
+                collapseOneTick(iframe);
+
+                // If no real height arrives in time, avoid carrying the tall height:
+                setTimeout(() => {
+                    // only apply if we’re still at the restored old value (i.e., no height yet)
+                    // We can't know the old value reliably here, so just set a safe provisional.
+                    applyProvisionalHeight(iframe);
+                }, 120);
+
+                return; // don't fall through
+            }
+
+            // B) HEIGHT HANDLING → set exact height if present (covers common shapes)
+            const heightVal =
+                (typeof data?.payload === 'number' && data.payload) ||
+                (typeof data?.height === 'number' && data.height) ||
+                (typeof data?.payload?.height === 'number' && data.payload.height) ||
+                (typeof data?.payload?.documentHeight === 'number' && data.payload.documentHeight) ||
+                null;
+
+            if (heightVal != null) {
+                const px = Math.max(0, Number(heightVal)) + 'px';
+                iframe.style.height = px;
+                log('[TallyResizer] height→', px);
+            }
+
+
 
             if (data?.event === "Tally.FormSubmitted" && data?.payload) {
                 const payload = data.payload;
