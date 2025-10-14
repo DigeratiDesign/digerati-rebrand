@@ -252,11 +252,11 @@ export const tally = (minPreloaderMs: number = 1000): void => {
 
                 if (textEl) {
                     log("🔍 Current label text before change:", textEl.textContent?.trim());
-                    textEl.textContent = "Close";
+                    // textEl.textContent = "Close";
                     log("✅ Updated label text after change:", textEl.textContent?.trim());
                 } else if (closeBtn) {
                     log("🔍 Current button text before change:", closeBtn.textContent?.trim());
-                    closeBtn.textContent = "Close";
+                    // closeBtn.textContent = "Close";
                     log("✅ Updated button text after change:", closeBtn.textContent?.trim());
                 } else {
                     warn("⚠️ No close button or text element found inside modal");
@@ -280,11 +280,11 @@ export const tally = (minPreloaderMs: number = 1000): void => {
 
             if (textEl) {
                 log("🔍 Current label text before reset:", textEl.textContent?.trim());
-                textEl.textContent = "Abort";
+                // textEl.textContent = "Abort";
                 log("✅ Label reset to:", textEl.textContent?.trim());
             } else if (closeBtn) {
                 log("🔍 Current button text before reset:", closeBtn.textContent?.trim());
-                closeBtn.textContent = "Abort";
+                // closeBtn.textContent = "Abort";
                 log("⚠️ Fallback reset applied on button directly");
             } else {
                 warn("⚠️ No close button or label element found while resetting");
