@@ -10,11 +10,12 @@ export function lottieInit() {
   eventBus.emit('lottie:init', { count: containers.length });
   log(`[Lottie] Found ${containers.length} elements`);
 
-  /* const isIOS =
+  // We still detect iOS, but no longer change renderer type.
+  const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);*/
-  const isIOS = false; // Don't have time to refactor now, Lottie animations white in Canvas renderer
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
 
+  // Active animations tracking
   let activeIOS: ReturnType<typeof lottie.loadAnimation> | null = null;
   let iosToPause: ReturnType<typeof lottie.loadAnimation> | null = null;
 
@@ -22,11 +23,17 @@ export function lottieInit() {
   const desktopToPause: Set<ReturnType<typeof lottie.loadAnimation>> = new Set();
 
   const waitForLayout = (el: HTMLElement, callback: () => void) => {
-    let lastW = 0, lastH = 0, stable = 0;
+    let lastW = 0,
+      lastH = 0,
+      stable = 0;
     const check = () => {
       const { width, height } = el.getBoundingClientRect();
       if (width && height && width === lastW && height === lastH) stable++;
-      else { stable = 0; lastW = width; lastH = height; }
+      else {
+        stable = 0;
+        lastW = width;
+        lastH = height;
+      }
       if (stable >= 2) callback();
       else requestAnimationFrame(check);
     };
@@ -41,10 +48,10 @@ export function lottieInit() {
     const createAnimation = () => {
       if (animation) return;
       const path = container.getAttribute('dd-lottie')!;
-      console.log(`[${now()}] 🎬 Creating animation for`, container);
+      log(`[${now()}] 🎬 Creating animation for`, container);
       const created = lottie.loadAnimation({
         container,
-        renderer: isIOS ? 'canvas' : 'svg',
+        renderer: 'svg', // ✅ Always SVG now
         loop: true,
         autoplay: true,
         path,
@@ -55,7 +62,7 @@ export function lottieInit() {
 
       created.addEventListener('loopComplete', () => {
         // iOS deferred pause
-        if (isIOS && iosToPause === created) {
+        if (iosToPause === created) {
           log(`[${now()}] ⏸️ Pausing previous iOS animation after loop`);
           created.pause();
           iosToPause = null;
@@ -63,7 +70,7 @@ export function lottieInit() {
         }
 
         // Desktop deferred pause
-        if (!isIOS && desktopToPause.has(created)) {
+        if (desktopToPause.has(created)) {
           log(`[${now()}] ⏸️ Pausing old desktop animation after loop`);
           created.pause();
           desktopToPause.delete(created);
@@ -88,12 +95,10 @@ export function lottieInit() {
       if (!animation) return;
       log(`[${now()}] ❌ Destroying animation for`, container);
 
-      if (isIOS && activeIOS === animation) activeIOS = null;
-      if (!isIOS) {
-        const i = activeDesktop.indexOf(animation);
-        if (i >= 0) activeDesktop.splice(i, 1);
-        desktopToPause.delete(animation);
-      }
+      if (activeIOS === animation) activeIOS = null;
+      const i = activeDesktop.indexOf(animation);
+      if (i >= 0) activeDesktop.splice(i, 1);
+      desktopToPause.delete(animation);
 
       animation.destroy();
       eventBus.emit('lottie:destroyed', { element: container });
@@ -108,7 +113,7 @@ export function lottieInit() {
         waitForLayout(container, () => {
           createAnimation();
 
-          // iOS: only 1 at a time
+          // Still limit iOS to one at a time, but all SVG now
           if (isIOS && animation) {
             if (activeIOS && activeIOS !== animation) iosToPause = activeIOS;
             activeIOS = animation;
@@ -117,7 +122,7 @@ export function lottieInit() {
           }
 
           // Desktop: max 2 concurrent
-          if (animation && !isIOS) {
+          if (animation) {
             if (activeDesktop.length >= 2) {
               const oldest = activeDesktop[0];
               if (oldest && !desktopToPause.has(oldest)) {
@@ -138,7 +143,8 @@ export function lottieInit() {
     };
 
     const observer = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => handleVisibility(entry.isIntersecting)),
+      (entries) =>
+        entries.forEach((entry) => handleVisibility(entry.isIntersecting)),
       { threshold: 0.2 }
     );
 
