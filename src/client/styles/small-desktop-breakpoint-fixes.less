@@ -3,6 +3,7 @@
 @import '../../digerati/styles/_breakpoints.less';
 
 @media screen and (min-width: 992px) and (max-width: 1308px) {
+
   .home_solutions-grid,
   .home_persuasion-grid {
     grid-template-rows: auto auto auto;
@@ -11,6 +12,7 @@
 }
 
 @media screen and (max-width: 1308px) {
+
   .home_solutions-grid .card_copy,
   .home_persuasion-grid .card_copy {
     max-width: 35ch;
@@ -34,6 +36,42 @@
     .case-study_content-item.is-see-live {
       justify-self: start !important;
       margin-bottom: 0;
+    }
+  }
+}
+
+@media screen and (min-width: 992px) and (max-width: 1130px) {
+  .footer_footnote {
+    display: grid;
+    grid-column-gap: 1.5rem;
+    grid-row-gap: 1.5rem;
+    grid-template-rows: auto auto;
+    grid-template-columns: 1fr;
+    grid-auto-columns: 1fr;
+  }
+
+  .footer_copy-and-cookies {
+    grid-area: 2 / 1 / 3 / 2;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer_legal-list-wrapper {
+    width: 100%;
+  }
+
+  .footer_legal-list {
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer_social-link.is-last {
+    border-right-style: none;
+  }
+
+  .text-color-white.text-size-small {
+    &.is-copyright {
+      order: -9999;
     }
   }
 }

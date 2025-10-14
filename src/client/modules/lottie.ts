@@ -10,9 +10,10 @@ export function lottieInit() {
   eventBus.emit('lottie:init', { count: containers.length });
   log(`[Lottie] Found ${containers.length} elements`);
 
-  const isIOS =
+  /* const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);*/
+  const isIOS = false; // Don't have time to refactor now, Lottie animations white in Canvas renderer
 
   let activeIOS: ReturnType<typeof lottie.loadAnimation> | null = null;
   let iosToPause: ReturnType<typeof lottie.loadAnimation> | null = null;
