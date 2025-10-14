@@ -55,7 +55,7 @@ export function lottieInit() {
       created.addEventListener('loopComplete', () => {
         // iOS deferred pause
         if (isIOS && iosToPause === created) {
-          console.log(`[${now()}] ⏸️ Pausing previous iOS animation after loop`);
+          log(`[${now()}] ⏸️ Pausing previous iOS animation after loop`);
           created.pause();
           iosToPause = null;
           eventBus.emit('lottie:paused', { element: container });
@@ -63,7 +63,7 @@ export function lottieInit() {
 
         // Desktop deferred pause
         if (!isIOS && desktopToPause.has(created)) {
-          console.log(`[${now()}] ⏸️ Pausing old desktop animation after loop`);
+          log(`[${now()}] ⏸️ Pausing old desktop animation after loop`);
           created.pause();
           desktopToPause.delete(created);
           const index = activeDesktop.indexOf(created);
@@ -85,7 +85,7 @@ export function lottieInit() {
 
     const destroyAnimation = () => {
       if (!animation) return;
-      console.log(`[${now()}] ❌ Destroying animation for`, container);
+      log(`[${now()}] ❌ Destroying animation for`, container);
 
       if (isIOS && activeIOS === animation) activeIOS = null;
       if (!isIOS) {
@@ -121,7 +121,7 @@ export function lottieInit() {
               const oldest = activeDesktop[0];
               if (oldest && !desktopToPause.has(oldest)) {
                 desktopToPause.add(oldest);
-                console.log(`[${now()}] 🎬 Queued oldest desktop animation to pause after loop`);
+                log(`[${now()}] 🎬 Queued oldest desktop animation to pause after loop`);
               }
             }
             if (!activeDesktop.includes(animation)) activeDesktop.push(animation);
