@@ -1,42 +1,57 @@
 // src/client/styles/text-rich-text.less
 
 .text-rich-text {
+
   // Heading Fullstop Highlight
   &.is-legal {
+
     h2 strong,
     h3 strong {
       color: #00ff00;
     }
 
-    table {
-      &.responsive-table {
-        th {
-          background-color: #b0a89e;
+    ul {
+      li {
+        ul {
+          margin-top: 0;
+          margin-bottom: 0;
         }
       }
     }
-  }
 
-  // Bullet Highlight
-  &.is-case-study {
-    ul {
-      padding-left: 0;
+    .glow-img-wrapper {
+      aspect-ratio: initial;
 
-      li {
-        position: relative;
-        list-style: none;
-        margin-left: 1.75rem;
+      table {
+        &.responsive-table {
+          th {
+            background-color: #b0a89e;
+          }
+        }
+      }
+    }
 
-        &::before {
-          content: '';
-          position: absolute;
-          top: 0.5rem;
-          left: -1.75rem;
-          display: block;
-          width: 0.375rem;
-          height: 0.375rem;
-          border-radius: 100%;
-          background-color: lime;
+    // Bullet Highlight
+    &.is-case-study {
+      ul {
+        padding-left: 0;
+
+        li {
+          position: relative;
+          list-style: none;
+          margin-left: 1.75rem;
+
+          &::before {
+            content: '';
+            position: absolute;
+            top: 0.5rem;
+            left: -1.75rem;
+            display: block;
+            width: 0.375rem;
+            height: 0.375rem;
+            border-radius: 100%;
+            background-color: lime;
+          }
         }
       }
     }

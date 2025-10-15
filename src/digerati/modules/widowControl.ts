@@ -18,7 +18,7 @@ import { eventBus } from '$digerati/events';
 import { autoGroup, log, warn } from '$digerati/utils/logger';
 
 export interface WidowControlOptions {
-  selector?: string; // default 'p, h1, h2, h3, h4, h5, h6'
+  selector?: string; // default 'p, li'
   skipSelectors?: string[]; // e.g. ['[aria-hidden="true"]', '.no-widow']
   nowrapCount?: number; // keep last N words together; default 2 (min 2)
   markAttr?: string; // attribute set after processing; default 'data-dd-widow'
@@ -27,7 +27,7 @@ export interface WidowControlOptions {
 
 export const widowControl = (opts: WidowControlOptions = {}) => {
   autoGroup('Widow Control', () => {
-    const selector = opts.selector ?? 'p, h1, h2, h3, h4, h5, h6';
+    const selector = opts.selector ?? 'p, li';
     const skipSelectors = opts.skipSelectors ?? ['[aria-hidden="true"]', '.no-widow'];
     const nowrapCount = Math.max(2, opts.nowrapCount ?? 2);
     const markAttr = opts.markAttr ?? 'data-dd-widow';
