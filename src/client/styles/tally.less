@@ -1,5 +1,11 @@
 // src/client/styles/tally.less
 
+body {
+  .no-scroll {
+    overflow: hidden;
+  }
+}
+
 // Tally modal “fullscreen” pseudo‐element
 .tally-modal_fullscreen {
 
@@ -20,6 +26,7 @@
 
 // Preloader base styles
 .tally-modal_preloader {
+  position: fixed;
   --bg: #2a2722;
   --disc-front: #ffffff;
 }

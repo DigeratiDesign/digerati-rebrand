@@ -31,27 +31,28 @@
       }
     }
 
-    // Bullet Highlight
-    &.is-case-study {
-      ul {
-        padding-left: 0;
+  }
 
-        li {
-          position: relative;
-          list-style: none;
-          margin-left: 1.75rem;
+  // Bullet Highlight
+  &.is-case-study {
+    ul {
+      padding-left: 0;
 
-          &::before {
-            content: '';
-            position: absolute;
-            top: 0.5rem;
-            left: -1.75rem;
-            display: block;
-            width: 0.375rem;
-            height: 0.375rem;
-            border-radius: 100%;
-            background-color: lime;
-          }
+      li {
+        position: relative;
+        list-style: none;
+        margin-left: 1.75rem;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0.5rem;
+          left: -1.75rem;
+          display: block;
+          width: 0.375rem;
+          height: 0.375rem;
+          border-radius: 100%;
+          background-color: lime;
         }
       }
     }
