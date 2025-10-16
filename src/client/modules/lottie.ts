@@ -7,10 +7,12 @@ export function lottieInit() {
   const containers = document.querySelectorAll<HTMLElement>('[dd-lottie]');
   const now = () => new Date().toISOString().split('T')[1].replace('Z', '');
 
+  // Toggle this flag to switch iOS renderer behaviour
+  const renderIOSAsCanvas = true; // ✅ set to false to revert to SVG on iOS
+
   eventBus.emit('lottie:init', { count: containers.length });
   log(`[Lottie] Found ${containers.length} elements`);
 
-  // We still detect iOS, but no longer change renderer type.
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
@@ -48,17 +50,20 @@ export function lottieInit() {
     const createAnimation = () => {
       if (animation) return;
       const path = container.getAttribute('dd-lottie')!;
-      log(`[${now()}] 🎬 Creating animation for`, container);
+      const renderer =
+        isIOS && renderIOSAsCanvas ? 'canvas' : 'svg'; // 👈 controlled renderer
+      log(`[${now()}] 🎬 Creating animation (${renderer}) for`, container);
+
       const created = lottie.loadAnimation({
         container,
-        renderer: 'svg', // ✅ Always SVG now
+        renderer,
         loop: true,
         autoplay: true,
         path,
       });
 
       animation = created;
-      eventBus.emit('lottie:created', { element: container, path });
+      eventBus.emit('lottie:created', { element: container, path, renderer });
 
       created.addEventListener('loopComplete', () => {
         // iOS deferred pause
@@ -113,7 +118,7 @@ export function lottieInit() {
         waitForLayout(container, () => {
           createAnimation();
 
-          // Still limit iOS to one at a time, but all SVG now
+          // iOS: limit to one at a time
           if (isIOS && animation) {
             if (activeIOS && activeIOS !== animation) iosToPause = activeIOS;
             activeIOS = animation;
