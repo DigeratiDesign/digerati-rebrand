@@ -1,0 +1,430 @@
+/* =========================================
+   Digerati x Tally – Content-Driven Layout
+   (no min-height/100vh; collapses and expands)
+   ========================================= */
+
+/* ---------- Root Vars ---------- */
+:root {
+    --accent-color: #00ff00;
+    --error-color: #ff0033;
+    --tick-color: #050505;
+    --max-field-width: 28.125rem;
+    --trans-bg-opacity: 0.08;
+    --page-pad-top: 6.25rem;
+    --page-pad-bottom: 6.25rem;
+    --h1-desktop: 4.25rem;
+    --h1-tablet: 4rem;
+    --h1-mobile-landscape: 3.75rem;
+    --h1-mobile-portrait: 2.25rem;
+}
+
+/* ---------- App Shell ---------- */
+.tally-app .tally-progress-bar {
+    position: fixed;
+}
+
+.tally-app .tally-form-cover {
+    display: none;
+}
+
+body>#__next>div {
+    background-color: transparent;
+}
+
+.tally-app main {
+    padding-left: 5%;
+    padding-right: 5%;
+    height: auto;
+    min-height: auto;
+    display: block;
+    box-sizing: border-box;
+}
+
+/* Centered page container (no viewport locks; height = content) */
+.tally-app main .tally-page {
+    width: 100%;
+    max-width: 80rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-top: var(--page-pad-top);
+    padding-bottom: var(--page-pad-bottom);
+    display: block;
+    box-sizing: border-box;
+}
+
+/* Natural-flow form */
+.tally-app main .tally-page>form {
+    display: block;
+    margin: 0;
+}
+
+/* ---------- Typography ---------- */
+@font-face {
+    font-family: 'Fira Sans Condensed';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/fontsource/fonts/fira-sans-condensed@latest/latin-700-normal.woff2") format("woff2"),
+        url("https://cdn.jsdelivr.net/fontsource/fonts/fira-sans-condensed@latest/latin-700-normal.woff") format("woff");
+}
+
+.tally-app main h1,
+.tally-app main h2,
+.tally-app main h3 {
+    color: #fff;
+    letter-spacing: -0.015em;
+    font-family: "Fira Sans Condensed", Impact, sans-serif;
+}
+
+.tally-app main h1 {
+    max-width: 13ch;
+    text-transform: uppercase;
+    font-size: var(--h1-desktop);
+    line-height: var(--h1-desktop);
+}
+
+.tally-app main h2 {
+    text-transform: uppercase;
+    font-size: 2.125rem !important;
+}
+
+.tally-app main p {
+    max-width: 31ch;
+    color: #ffffff;
+    font-size: 1.125rem;
+}
+
+.tally-app main a:not(.unstyled) {
+    display: inline-block;
+    -webkit-text-decoration-skip-ink: auto;
+    text-decoration-skip-ink: auto;
+    text-underline-position: under;
+    color: #ffffff;
+    -webkit-text-decoration: underline var(--accent-color);
+    text-decoration: underline var(--accent-color);
+    transition: color 0.2s;
+    border-bottom: none;
+    background: transparent !important;
+}
+
+.tally-app main a:not(.unstyled):hover {
+    color: var(--accent-color);
+    border-bottom: none;
+}
+
+/* ---------- Back Button ---------- */
+.tally-app .tally-back-button button>i+span {
+    display: inline-block;
+    font-size: 1rem;
+    text-transform: uppercase;
+    font-weight: 400;
+    font-family: Poppins;
+    -webkit-font-smoothing: antialiased;
+    opacity: 1;
+    color: #ffffff;
+    transition: opacity 0.2s;
+}
+
+.tally-app .tally-back-button button:hover>i+span {
+    opacity: 0.5;
+}
+
+.tally-app .tally-back-button button:focus {
+    outline: none;
+}
+
+.tally-app main .tally-back-button i,
+.tally-app main .tally-back-button span {
+    color: #fff !important;
+}
+
+/* normal flow */
+.tally-app main .tally-back-button {
+    position: relative !important;
+    margin: 0;
+    align-self: auto;
+}
+
+/* ---------- Required Indicator ---------- */
+.tally-app main .tally-required-indicator>span {
+    top: 0.1875rem;
+    color: var(--error-color);
+}
+
+.tally-app main .tally-block-input-text>div>div>input+.tally-required-indicator {
+    top: 0.75rem;
+    right: 0.75rem;
+}
+
+/* ---------- Multiple Choice ---------- */
+.tally-app main .tally-multiple-choice-option>div {
+    border-radius: 1.5625rem;
+    background: rgba(255, 255, 255, var(--trans-bg-opacity));
+    backdrop-filter: blur(0.625rem);
+    -webkit-backdrop-filter: blur(0.625rem);
+    box-shadow: none !important;
+    width: 100%;
+    border: 0.5px solid #fff;
+    max-width: var(--max-field-width);
+}
+
+.tally-app main .tally-multiple-choice-option>div>div>label {
+    color: #ffffff;
+}
+
+.tally-app main .tally-multiple-choice-option.tally-multiple-choice-option-selected {
+    border-color: var(--accent-color);
+}
+
+.tally-app main .tally-multiple-choice-option.tally-multiple-choice-option-selected .tally-enumeration-badge {
+    color: #050505;
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.tally-app main .tally-multiple-choice-option .tally-enumeration-badge {
+    border-radius: 100%;
+    color: #050505;
+    border-color: #ffffff;
+    background-color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+/* ---------- Fields ---------- */
+.tally-app main .tally-block-input-text>div>div,
+.tally-app main .tally-block-input-email>div>div,
+.tally-app main .tally-block-input-link>div>div,
+.tally-app main .tally-block-textarea>div>div,
+.tally-app main .tally-block-input-phone-number>div>div,
+.tally-app main .tally-block-file-upload>div>div,
+.tally-app main .tally-other-option-input {
+    width: 100%;
+    max-width: var(--max-field-width);
+}
+
+.tally-app main input,
+.tally-app main textarea {
+    color: #ffffff;
+    caret-color: var(--accent-color);
+    border: 0.5px solid #ffffff;
+    padding: 1.25rem;
+    border-radius: 1.5625rem;
+    background: rgba(255, 255, 255, var(--trans-bg-opacity));
+    backdrop-filter: blur(0.625rem);
+    -webkit-backdrop-filter: blur(0.625rem);
+    box-shadow: none !important;
+    max-width: var(--max-field-width);
+    transition: border 0.3s ease;
+}
+
+/* ---------- Phone Number ---------- */
+.tally-app main .tally-block-input-phone-number>div>div>div>div>svg {
+    color: #ffffff;
+}
+
+/* ---------- File Upload ---------- */
+.tally-app main .tally-block-file-upload>div>div {
+    border: 0.5px solid #ffffff;
+    border-radius: 1.5625rem;
+    background: rgba(255, 255, 255, var(--trans-bg-opacity));
+    backdrop-filter: blur(0.625rem);
+    -webkit-backdrop-filter: blur(0.625rem);
+    box-shadow: none !important;
+    max-width: var(--max-field-width);
+}
+
+.tally-app main .tally-block-file-upload>div>div>button>i>svg {
+    color: #fff;
+}
+
+.tally-app main .tally-block-file-upload>div>div>button:hover {
+    background-color: transparent !important;
+}
+
+.tally-app main .tally-block-file-upload>div>div>button:hover span {
+    color: #fff !important;
+    background-color: transparent !important;
+}
+
+.tally-app main .tally-block-file-upload>div>div span,
+.tally-app main .tally-block-file-upload>div>div span>svg {
+    color: #ffffff;
+}
+
+.tally-app main input:focus,
+.tally-app main textarea:focus,
+.tally-app main .tally-block-file-upload:focus>div>div {
+    border: 0.5px solid var(--accent-color);
+}
+
+/* 0.5px */
+.tally-app main textarea {
+    resize: none;
+}
+
+/* ---------- Checkbox ---------- */
+.tally-app main .tally-checkbox {
+    color: #ffffff;
+}
+
+.tally-app main .tally-checkbox>div>div>div {
+    box-shadow: none !important;
+}
+
+.tally-app main .tally-checkbox>div>div>div>svg {
+    color: var(--tick-color);
+}
+
+.tally-app main .tally-checkbox>div>div>label {
+    max-width: var(--max-field-width);
+}
+
+.tally-app main .tally-checkbox.tally-checkbox-selected>div>div>div {
+    background-color: var(--accent-color);
+}
+
+/* ---------- Static Text Blocks ---------- */
+.tally-app main .tally-block-text {
+    color: #ffffff;
+}
+
+.tally-app main .tally-block-text>div {
+    max-width: var(--max-field-width);
+}
+
+/* ---------- Error Message ---------- */
+.tally-app main .tally-validation-error>span {
+    margin-top: 0.4375rem;
+    padding: 0.3125rem 0.625rem;
+    font-weight: 400;
+    font-family: Poppins;
+    color: #ffffff;
+    border-radius: 1.25rem;
+    background-color: var(--error-color);
+}
+
+/* ---------- Submit Button Row ---------- */
+/* Keep your left offset; no auto-push tricks so height stays content-driven */
+.tally-app main .tally-submit-button {
+    margin-top: 2rem;
+    align-self: auto;
+}
+
+.tally-app main .tally-submit-button button:focus {
+    outline: none;
+}
+
+.tally-app main .tally-submit-button button {
+    position: relative;
+    border-radius: 100vw;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: transparent;
+    height: auto;
+    overflow: hidden;
+    border: 0.5px solid #fff;
+}
+
+.tally-app main .tally-submit-button button:hover {
+    background: transparent;
+}
+
+.tally-app main .tally-submit-button button span:first-child {
+    display: inline-block;
+    font-size: 1rem;
+    text-transform: uppercase;
+    font-weight: 400;
+    font-family: Poppins;
+    -webkit-font-smoothing: antialiased;
+    opacity: 1;
+    color: #ffffff;
+    transition: opacity 0.3s cubic-bezier(0.39, 0.575, 0.565, 1);
+}
+
+.tally-app main .tally-submit-button button:hover span:first-child {
+    opacity: 0.5;
+}
+
+.tally-app main .tally-submit-button button i {
+    position: absolute;
+    right: 1.5rem;
+    top: 1.5rem;
+    z-index: 1;
+    width: 1rem;
+    height: 1rem;
+    overflow: hidden;
+    color: #ffffff;
+}
+
+.tally-app main .tally-submit-button button i>svg {
+    position: absolute;
+    top: 0.0625rem;
+    left: -120%;
+    width: 0.875rem;
+    height: 0.875rem;
+    color: #ffffff;
+    transition: left 0.3s cubic-bezier(0.39, 0.575, 0.565, 1);
+}
+
+.tally-app main .tally-submit-button button:hover i>svg {
+    left: 0%;
+}
+
+.tally-app main .tally-submit-button button span:last-child {
+    position: relative;
+    display: inline-block;
+    opacity: 1 !important;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 100vw;
+    overflow: hidden;
+}
+
+.tally-app main .tally-submit-button button span:last-child>svg {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0%;
+    border-radius: 100%;
+    color: var(--accent-color);
+    background: var(--accent-color);
+    width: 1rem !important;
+    height: 1rem !important;
+    opacity: 1 !important;
+    animation: none;
+    transition: right 0.3s cubic-bezier(0.39, 0.575, 0.565, 1);
+}
+
+.tally-app main .tally-submit-button button:hover span:last-child>svg {
+    right: -101%;
+}
+
+/* ---------- Responsive Text ---------- */
+@media screen and (max-width: 991px) {
+    .tally-app main h1 {
+        line-height: var(--h1-tablet);
+        font-size: var(--h1-tablet);
+    }
+}
+
+@media screen and (max-width: 767px) {
+    .tally-app main h1 {
+        line-height: var(--h1-mobile-landscape);
+        font-size: var(--h1-mobile-landscape);
+    }
+}
+
+@media screen and (max-width: 479px) {
+    .tally-app main h1 {
+        line-height: var(--h1-mobile-portrait);
+        font-size: var(--h1-mobile-portrait);
+    }
+
+    .tally-app main p {
+        font-size: 1rem;
+    }
+}
