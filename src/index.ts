@@ -29,7 +29,7 @@ const PHASES = {
         }),
       Core.collectionSplitter,
       Core.copyrightYear,
-      Client.tally,
+      Client.contact,
       Client.reasonGenerator,
       Client.initLegalColourCycle,
       () =>

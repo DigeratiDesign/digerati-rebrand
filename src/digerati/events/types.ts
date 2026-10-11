@@ -111,21 +111,6 @@ export interface AppEvents {
   'smoothScroll:hashTriggered': { hash: string };
   'smoothScroll:skippedReducedMotion': { targetId: string | null };
 
-  // Tally embed modal
-  'tally:init:error': { reason: string };
-  'tally:preloader:show': { mode: string };
-  'tally:preloader:hide': { method: 'immediate' | 'fade' | 'fade-fallback' };
-  'tally:open': { url: string };
-  'tally:load:success': { url: string };
-  'tally:load:error': { url: string };
-  'tally:load:timeout': { url: string };
-  'tally:opened': { url: string };
-  'tally:close': void;
-  'tally:closed': void;
-  'tally:initialized': void;
-  'tally:accent:lock': { hex: string };
-  'tally:accent:release': void;
-
   // Testimonial Avatar
   'testimonialAvatar:init': void;
   'testimonialAvatar:enter': { alt: string };

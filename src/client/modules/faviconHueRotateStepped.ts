@@ -1,12 +1,8 @@
 /**
- * Favicon Hue Rotate (Instant Lock)
- * Continuously cycles hue while unlocked,
- * instantly switches to target hex on lock.
+ * Favicon Hue Rotate
+ * Continuously cycles the favicon hue and --h.
  *
- * On lock: favicon recoloured + accent var overridden.
- * On release: accent var restored + cycling resumed.
- *
- * On iOS / PWA: hue cycling still drives --h and accent vars,
+ * On iOS / PWA: hue cycling still drives --h,
  * but favicon drawing is skipped to avoid wasted work.
  *
  * @author <cabal@digerati.design>
@@ -21,7 +17,7 @@ const SIZE16 = 16;
 const MAX_FPS = 60;
 
 export const faviconHueRotateStepped = (): void => {
-  autoGroup("Favicon Hue Rotate (Instant Lock)", () => {
+  autoGroup("Favicon Hue Rotate", () => {
     const env = getFaviconEnv();
 
     const baseHref = env.shouldDrawFavicon ? findBaseHref() : null;
@@ -64,7 +60,7 @@ export const faviconHueRotateStepped = (): void => {
       let rafId: number | null = null;
       let lastCssWriteAt = 0;
       let paused = false;
-      let origin = performance.now();
+      const origin = performance.now();
       const cssMinDelta = 1000 / MAX_FPS;
 
       const draw = (hue: number) => {
@@ -80,47 +76,6 @@ export const faviconHueRotateStepped = (): void => {
         ctx16!.drawImage(img, 0, 0, SIZE16, SIZE16);
         (ctx16 as any).filter = "none";
         link16!.href = c16!.toDataURL("image/png");
-      };
-
-      const applyExactFaviconColour = (hex: string) => {
-        if (!env.shouldDrawFavicon) return; // skip on iOS etc.
-        const rT = parseInt(hex.slice(1, 3), 16);
-        const gT = parseInt(hex.slice(3, 5), 16);
-        const bT = parseInt(hex.slice(5, 7), 16);
-        const DARK_THRESHOLD = 140;
-        const SOFT_BLEND = 0;
-
-        [[ctx32, SIZE32, link32], [ctx16, SIZE16, link16]].forEach(
-          ([ctx, size, link]) => {
-            const c = ctx as CanvasRenderingContext2D;
-            if (!c) return;
-            c.clearRect(0, 0, size as number, size as number);
-            c.drawImage(img, 0, 0, size as number, size as number);
-
-            const imageData = c.getImageData(0, 0, size as number, size as number);
-            const data = imageData.data;
-
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i],
-                g = data[i + 1],
-                b = data[i + 2],
-                a = data[i + 3];
-              if (a === 0) continue;
-              const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-              const t =
-                brightness < DARK_THRESHOLD
-                  ? SOFT_BLEND * (brightness / DARK_THRESHOLD)
-                  : 1;
-              data[i] = Math.round(r * (1 - t) + rT * t);
-              data[i + 1] = Math.round(g * (1 - t) + gT * t);
-              data[i + 2] = Math.round(b * (1 - t) + bT * t);
-            }
-
-            c.putImageData(imageData, 0, 0);
-            (link as HTMLLinkElement).href =
-              (size === SIZE32 ? c32 : c16)!.toDataURL("image/png");
-          }
-        );
       };
 
       const tick = (now: number) => {
@@ -148,30 +103,6 @@ export const faviconHueRotateStepped = (): void => {
         rafId = null;
       };
 
-      const onLock = ({ hex }: { hex: string }) => {
-        paused = true;
-        log("Instant hue lock applied", { hex });
-
-        applyExactFaviconColour(hex);
-        document.documentElement.style.setProperty("--h", "0deg");
-        document.documentElement.style.setProperty("--color-scheme-1--accent", hex);
-        eventBus.emit("faviconHueRotateStepped:locked", { hex, instant: true });
-      };
-
-      const onRelease = () => {
-        log("Hue rotation released (resume cycle)");
-        document.documentElement.style.removeProperty("--color-scheme-1--accent");
-        paused = false;
-        origin = performance.now();
-        lastCssWriteAt = 0;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(tick);
-        eventBus.emit("faviconHueRotateStepped:released");
-      };
-
-      const offLock = eventBus.on("tally:accent:lock", onLock);
-      const offRelease = eventBus.on("tally:accent:release", onRelease);
-
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") stop();
         else if (!paused) start();
@@ -181,8 +112,6 @@ export const faviconHueRotateStepped = (): void => {
         "pagehide",
         () => {
           stop();
-          offLock();
-          offRelease();
         },
         { once: true }
       );

@@ -12,8 +12,6 @@ declare module '$digerati/events/types' {
     // --- Favicon Hue Rotate ---
     'faviconHueRotateStepped:skipped': { reason?: string };
     'faviconHueRotateStepped:running': void;
-    'faviconHueRotateStepped:locked': { hue: number; current: number };
-    'faviconHueRotateStepped:released': void;
 
     // --- Legal Colour Cycle ---
     'legalColourCycle:noneFound': { selector: string };
@@ -37,21 +35,6 @@ declare module '$digerati/events/types' {
     'reasonGenerator:started': void;
     'reasonGenerator:error': { message: string };
     'reasonGenerator:generated': { reason: string };
-
-    // --- Tally embed modal ---
-    'tally:init:error': { reason: string };
-    'tally:preloader:show': { mode: string };
-    'tally:preloader:hide': { method: 'immediate' | 'fade' | 'fade-fallback' };
-    'tally:open': { url: string };
-    'tally:load:success': { url: string };
-    'tally:load:error': { url: string };
-    'tally:load:timeout': { url: string };
-    'tally:opened': { url: string };
-    'tally:close': void;
-    'tally:closed': void;
-    'tally:initialized': void;
-    'tally:accent:lock': { hex: string };
-    'tally:accent:release': void;
 
     // --- Testimonial Avatar ---
     'testimonialAvatar:init': void;

@@ -5,5 +5,5 @@ export { faviconHueRotateStepped } from './faviconHueRotateStepped';
 export { initLegalColourCycle } from './legalColourCycle';
 export { lottieInit } from './lottie';
 export { reasonGenerator } from './reasonGenerator';
-export { tally } from './tally';
+export { contact } from './contact';
 export { testimonialAvatar } from './testimonialAvatar';
