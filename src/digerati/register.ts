@@ -62,7 +62,7 @@ export function webflowReady(fn: Callback): void {
   window.Webflow.push(fn);
 }
 
-/** ------------------ IX2 / GSAP READY ------------------ */
+/** ------------------ IX2 READY ------------------ */
 // Queue of callbacks for IX2 readiness
 const ix2Callbacks: Callback[] = [];
 // Flag indicating if IX2 has already loaded

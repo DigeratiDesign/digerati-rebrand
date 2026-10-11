@@ -24,7 +24,6 @@ const getIx2 = () => {
  * Applies or removes reduced-motion effects:
  * - Toggles class for CSS fallback (`html.reduce-motion`)
  * - Destroys IX2 when reduced motion is active; tries to re-init when it's disabled.
- * - Clears GSAP global timeline when reduced motion is active.
  */
 const applySetting = () => {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -35,7 +34,7 @@ const applySetting = () => {
   html.classList.toggle('reduce-motion', reduce);
 
   if (reduce) {
-    log('Reduced motion is active; disabling IX2 and clearing GSAP timelines.');
+    log('Reduced motion is active; disabling IX2.');
     // Disable Webflow IX2
     const ix2 = getIx2();
     if (ix2 && typeof ix2.destroy === 'function') {
@@ -46,15 +45,6 @@ const applySetting = () => {
       }
     } else {
       warn('IX2 instance not found or destroy method unavailable.');
-    }
-
-    // Clear GSAP global timeline if present
-    if ((window as any).gsap && (window as any).gsap.globalTimeline) {
-      try {
-        (window as any).gsap.globalTimeline.clear();
-      } catch (e) {
-        warn('Failed to clear GSAP global timeline:', e);
-      }
     }
   } else {
     log('Reduced motion is not active; attempting to re-initialize IX2 if needed.');

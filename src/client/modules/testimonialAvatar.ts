@@ -1,11 +1,6 @@
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
 import { shouldAnimate } from '$digerati/accessibility/reducedMotion';
 import { eventBus } from '$digerati/events';
 import { autoGroup, devError, error as logError, log, warn } from '$digerati/utils/logger';
-
-gsap.registerPlugin(ScrollTrigger);
 
 /**
  * Detect Safari (but not Chrome on macOS/iOS)
@@ -17,7 +12,10 @@ const isSafari =
 /**
  * Testimonial Avatar Halftone effect tied to scroll visibility.
  */
-export const testimonialAvatar = () => {
+let initialized = false;
+
+export const testimonialAvatar = async () => {
+  if (initialized) return;
   autoGroup('Testimonial Avatar', () => {
     eventBus.emit('testimonialAvatar:init');
     // Respect reduced motion preference
@@ -31,14 +29,6 @@ export const testimonialAvatar = () => {
     if (isSafari && location.hostname === 'localhost') {
       warn('Safari detected in local dev; skipping testimonial avatar halftone effects.');
       eventBus.emit('testimonialAvatar:exit', { alt: undefined });
-      return;
-    }
-
-    if (typeof ScrollTrigger === 'undefined') {
-      logError('ScrollTrigger is unavailable; aborting testimonialAvatar setup.');
-      eventBus.emit('testimonialAvatar:error', {
-        message: 'ScrollTrigger missing',
-      });
       return;
     }
 
@@ -57,7 +47,7 @@ export const testimonialAvatar = () => {
       if ((img as any)._halftone) return;
       try {
         initHalftone(img);
-        eventBus.emit('testimonialAvatar:enter', { alt: img.alt });
+        if ((img as any)._halftone) eventBus.emit('testimonialAvatar:enter', { alt: img.alt });
       } catch (e) {
         logError('Failed to initialize halftone for image:', img.alt || '(no alt)', e);
         eventBus.emit('testimonialAvatar:error', {
@@ -74,23 +64,31 @@ export const testimonialAvatar = () => {
       }
     };
 
-    avatars.forEach((img) => {
-      ScrollTrigger.create({
-        trigger: img,
-        start: 'top bottom',
-        end: 'bottom top',
-        onToggle: (self) => {
-          if (self.isActive) {
-            initIfNeeded(img);
-          } else {
-            destroyIfExists(img);
-          }
-        },
-      });
+    // Equivalent to top/bottom viewport boundaries, with no preloading margin.
+    let observing = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!observing) return;
+        entries.forEach((entry) => {
+          const img = entry.target as HTMLImageElement;
+          if (entry.isIntersecting) initIfNeeded(img);
+          else destroyIfExists(img);
+        });
+      },
+      { root: null, rootMargin: '0px', threshold: 0 }
+    );
+    initialized = true;
+    avatars.forEach((img) => observer.observe(img));
+    window.addEventListener('pagehide', () => {
+      observing = false;
+      observer.disconnect();
+      avatars.forEach(destroyIfExists);
     });
-
-    // Force a layout evaluation in case needed
-    ScrollTrigger.refresh();
+    window.addEventListener('pageshow', (event) => {
+      if (!event.persisted) return;
+      observing = true;
+      avatars.forEach((img) => observer.observe(img));
+    });
 
     eventBus.emit('testimonialAvatar:initialized', { count: avatars.length });
   });

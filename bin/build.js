@@ -5,7 +5,12 @@ import less from 'less';
 import { promises as fs } from 'fs';
 import { readdirSync } from 'fs';
 import { join, sep } from 'path';
-import { assertProductionBundle, buildModeOptions } from './production-integrity.js';
+import {
+  assertHalftoneBundle,
+  assertProductionBundle,
+  buildModeOptions,
+  generateHalftoneBundle,
+} from './production-integrity.js';
 
 // Inline LESS plugin for esbuild
 const inlineLessPlugin = {
@@ -40,6 +45,21 @@ if (JAVASCRIPT_ONLY && !PRODUCTION) {
 const ENTRY_POINTS = JAVASCRIPT_ONLY ? ['src/index.ts'] : ['src/index.ts', 'src/main.less'];
 const SERVE_PORT = 3000;
 const SERVE_ORIGIN = `http://localhost:${SERVE_PORT}`;
+
+// A failed production build must not leave an old vendor artifact looking current.
+let halftone;
+if (PRODUCTION) {
+  await Promise.all([
+    fs.rm(`${BUILD_DIR}/breathing-halftone.pkgd.js`, { force: true }),
+    fs.rm(`${BUILD_DIR}/breathing-halftone.pkgd.js.map`, { force: true }),
+  ]);
+  const [source, license] = await Promise.all([
+    fs.readFile('vendor/breathing-halftone.pkgd.js', 'utf8'),
+    fs.readFile('vendor/LICENSE.breathing-halftone', 'utf8'),
+  ]);
+  halftone = await generateHalftoneBundle(source, license);
+  await assertHalftoneBundle(halftone.code, halftone.map, source, license);
+}
 
 // Delete old webflow-html-embed.css in dev
 if (!PRODUCTION) {
@@ -76,6 +96,8 @@ if (PRODUCTION) {
       await fs.mkdir(join(file.path, '..'), { recursive: true });
       await fs.writeFile(file.path, file.contents);
     }
+    await fs.writeFile(`${BUILD_DIR}/breathing-halftone.pkgd.js`, halftone.code);
+    await fs.writeFile(`${BUILD_DIR}/breathing-halftone.pkgd.js.map`, halftone.map);
 
     if (JAVASCRIPT_ONLY) {
       console.log('✅ Production JavaScript and source map written; CSS left untouched');
