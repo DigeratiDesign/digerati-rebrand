@@ -64,7 +64,7 @@ const PHASES = {
   ix2Ready: {
     readyFn: ix2Ready,
     event: 'core:ix2Ready',
-    tasks: [Client.lottieInit],
+    tasks: [],
   },
 } satisfies Record<string, Phase>;
 
