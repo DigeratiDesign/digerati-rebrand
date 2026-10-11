@@ -8,7 +8,7 @@
  * @author <cabal@digerati.design>
  */
 import { eventBus } from '$digerati/events';
-import { autoGroup, devError, log, warn } from '$digerati/utils/logger';
+import { autoGroup, debug, log, warn } from '$digerati/utils/logger';
 
 export interface ReasonGeneratorOptions {
   selector?: string; // element selector, default '[dd-reason]'
@@ -41,8 +41,7 @@ export const reasonGenerator = (options: ReasonGeneratorOptions = {}): string | 
     eventBus.emit('reasonGenerator:started');
 
     if (!element) {
-      devError(`Reason element not found using selector "${selector}"`);
-      eventBus.emit('reasonGenerator:error', { message: 'element-not-found' });
+      debug(`Optional reason element "${selector}" is absent; skipping initialization`);
       return null;
     }
 
