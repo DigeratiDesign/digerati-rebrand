@@ -53,7 +53,6 @@ const PHASES = {
           injectCSS: true,
         }),
       () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
-      Client.faviconHueRotateStepped,
     ],
   },
   fontReady: {
