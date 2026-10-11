@@ -37,6 +37,8 @@ async function setup(
     real = false,
     missing = false,
     throws = false,
+    caseStudy = false,
+    missingWrapper = false,
   } = {}
 ) {
   await page.setViewportSize({ width: 1000, height: 700 });
@@ -44,8 +46,9 @@ async function setup(
   await page.route(`http://${host}/`, (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: `<style>body{margin:0;height:3000px}img{position:absolute;left:40px;width:100px;height:100px}#a{top:100px}#b{top:1100px}</style>
-      <img id="a" class="testimonial_half-tone" alt="first"><img id="b" class="testimonial_half-tone" alt="second">`,
+      body: `<style>body{margin:0;height:3000px}.testimonial_half-tone-wrapper,.home_case-study_half-tone-wrapper{position:absolute;left:40px;width:27.5rem;height:27.5rem;overflow:hidden}.testimonial_half-tone{position:absolute;top:1.25rem;left:1.25rem;width:25rem;height:25rem}#a-wrapper{top:100px}#b-wrapper{top:1100px}</style>
+      <div id="a-wrapper" class="${missingWrapper ? 'unrecognized-wrapper' : caseStudy ? 'home_case-study_half-tone-wrapper' : 'testimonial_half-tone-wrapper'}"><img id="a" class="testimonial_half-tone" alt="first"></div>
+      <div id="b-wrapper" class="testimonial_half-tone-wrapper"><img id="b" class="testimonial_half-tone" alt="second"></div>`,
     })
   );
   await page.goto(`http://${host}/`);
@@ -53,11 +56,16 @@ async function setup(
     async ({ safari, missing, throws }) => {
       window.testEvents = [];
       window.testObserverCount = 0;
+      window.testObservedTargets = [];
       const NativeObserver = window.IntersectionObserver;
       window.IntersectionObserver = class extends NativeObserver {
         constructor(callback, options) {
           super(callback, options);
           window.testObserverCount++;
+        }
+        observe(target) {
+          window.testObservedTargets.push(target.id);
+          super.observe(target);
         }
       };
       window.testInstances = [];
@@ -154,9 +162,9 @@ test('repeated initialization and resizing do not create duplicate instances', a
 
 test('multiple images initialize and clean up independently', async ({ page }) => {
   await setup(page);
-  await page.evaluate(() => (document.getElementById('b').style.top = '260px'));
+  await page.evaluate(() => (document.getElementById('b-wrapper').style.top = '260px'));
   await expect.poll(() => active(page)).toEqual([true, true]);
-  await page.evaluate(() => (document.getElementById('a').style.top = '1700px'));
+  await page.evaluate(() => (document.getElementById('a-wrapper').style.top = '1700px'));
   await expect.poll(() => active(page)).toEqual([false, true]);
   expect(
     await page.evaluate(() => window.testInstances.map((instance) => instance.destroyCalls))
@@ -167,12 +175,12 @@ test('viewport resizing and layout movement trigger entry and exit without refre
   page,
 }) => {
   await setup(page);
-  await page.evaluate(() => (document.getElementById('b').style.top = '750px'));
+  await page.evaluate(() => (document.getElementById('b-wrapper').style.top = '750px'));
   await page.setViewportSize({ width: 1000, height: 900 });
   await expect.poll(() => active(page)).toEqual([true, true]);
   await page.setViewportSize({ width: 1000, height: 650 });
   await expect.poll(() => active(page)).toEqual([true, false]);
-  await page.evaluate(() => (document.getElementById('b').style.top = '250px'));
+  await page.evaluate(() => (document.getElementById('b-wrapper').style.top = '250px'));
   await expect.poll(() => active(page)).toEqual([true, true]);
 });
 
@@ -209,7 +217,7 @@ test('pagehide cleanup blocks queued entry and back-cache restoration reobserves
     window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }))
   );
   await expect.poll(() => active(page)).toEqual([false, false]);
-  await page.evaluate(() => (document.getElementById('b').style.top = '250px'));
+  await page.evaluate(() => (document.getElementById('b-wrapper').style.top = '250px'));
   await page.waitForTimeout(100);
   expect(await active(page)).toEqual([false, false]);
   await page.evaluate(() =>
@@ -234,4 +242,97 @@ test('generated vendor bundle creates one canvas per image and removes it on exi
     await expect.poll(() => page.locator('canvas').count()).toBe(1);
   }
   expect(errors).toEqual([]);
+});
+
+for (const caseStudy of [false, true])
+  test(`real halftone stays stationary after hiding its image (${caseStudy ? 'case study' : 'testimonial'})`, async ({
+    page,
+  }) => {
+    await setup(page, { real: true, caseStudy });
+    await expect
+      .poll(() => page.evaluate(() => getComputedStyle(document.getElementById('a')).display))
+      .toBe('none');
+    await expect.poll(() => page.locator('canvas').count()).toBe(1);
+    const bounds = await page.locator('#a-wrapper').boundingBox();
+    await page.evaluate(() => {
+      window.firstCanvas = document.querySelector('canvas');
+      window.firstInstance = document.getElementById('a')._halftone;
+    });
+    await page.waitForTimeout(1000);
+    expect((await eventNames(page)).filter((name) => name === 'enter')).toHaveLength(1);
+    expect((await eventNames(page)).filter((name) => name === 'destroyed')).toHaveLength(0);
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelector('canvas') === window.firstCanvas &&
+          document.getElementById('a')._halftone === window.firstInstance
+      )
+    ).toBe(true);
+    expect(await page.locator('#a-wrapper').boundingBox()).toEqual(bounds);
+    await expect(page.locator('canvas')).toBeVisible();
+    expect(await page.locator('#a').boundingBox()).toBeNull();
+    await page.evaluate(() => window.scrollTo(0, 1800));
+    await expect.poll(() => page.locator('canvas').count()).toBe(0);
+    await expect.poll(() => active(page)).toEqual([false, false]);
+    expect(
+      await page.evaluate(() => getComputedStyle(document.getElementById('a')).display)
+    ).not.toBe('none');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect
+      .poll(() => page.evaluate(() => getComputedStyle(document.getElementById('a')).display))
+      .toBe('none');
+    await page.waitForTimeout(500);
+    expect((await eventNames(page)).filter((name) => name === 'enter')).toHaveLength(2);
+    expect((await eventNames(page)).filter((name) => name === 'destroyed')).toHaveLength(1);
+    await expect(page.locator('canvas')).toHaveCount(1);
+    await expect(page.locator('canvas')).toBeVisible();
+  });
+
+test('real halftone images hide independently without moving their observed containers', async ({
+  page,
+}) => {
+  await setup(page, { real: true });
+  await page.evaluate(() => (document.getElementById('b-wrapper').style.top = '250px'));
+  await expect
+    .poll(() =>
+      page.evaluate(() => [...document.images].map((img) => getComputedStyle(img).display))
+    )
+    .toEqual(['none', 'none']);
+  await page.waitForTimeout(1000);
+  expect((await eventNames(page)).filter((name) => name === 'enter')).toHaveLength(2);
+  expect((await eventNames(page)).filter((name) => name === 'destroyed')).toHaveLength(0);
+  await expect(page.locator('#a-wrapper canvas')).toHaveCount(1);
+  await expect(page.locator('#b-wrapper canvas')).toHaveCount(1);
+  await page.evaluate(() => (document.getElementById('a-wrapper').style.top = '1900px'));
+  await expect.poll(() => active(page)).toEqual([false, true]);
+  await expect(page.locator('#a-wrapper canvas')).toHaveCount(0);
+  await expect(page.locator('#b-wrapper canvas')).toHaveCount(1);
+  await page.evaluate(() => (document.getElementById('a-wrapper').style.top = '100px'));
+  await expect.poll(() => page.locator('canvas').count()).toBe(2);
+  await page.waitForTimeout(500);
+  expect((await eventNames(page)).filter((name) => name === 'enter')).toHaveLength(3);
+  expect((await eventNames(page)).filter((name) => name === 'destroyed')).toHaveLength(1);
+});
+
+test('missing wrapper reports a production-visible error and skips that image without a fallback observer', async ({
+  page,
+}) => {
+  const errors = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await setup(page, { missingWrapper: true });
+  await page.waitForTimeout(100);
+  expect(await active(page)).toEqual([false, false]);
+  expect(await page.evaluate(() => window.testInstances.length)).toBe(0);
+  expect(await page.evaluate(() => window.testObservedTargets)).toEqual(['b-wrapper']);
+  expect(
+    await page.evaluate(() => window.testEvents.filter((event) => event.name === 'error'))
+  ).toEqual([{ name: 'error', payload: { message: 'missing-wrapper', alt: 'first' } }]);
+  expect(
+    errors.some(
+      (message) =>
+        message.includes('No stable halftone wrapper found for') && message.includes('first')
+    )
+  ).toBe(true);
 });

@@ -64,21 +64,38 @@ export const testimonialAvatar = async () => {
       }
     };
 
+    // Halftone sets its image to display:none. Observe the fixed-size wrapper instead.
+    const avatarsByContainer = new Map<Element, HTMLImageElement[]>();
+    avatars.forEach((img) => {
+      const container = img.closest(
+        '.testimonial_half-tone-wrapper, .home_case-study_half-tone-wrapper'
+      );
+      if (!container) {
+        logError('No stable halftone wrapper found for', img.alt || '(no alt)');
+        eventBus.emit('testimonialAvatar:error', { message: 'missing-wrapper', alt: img.alt });
+        return;
+      }
+      const images = avatarsByContainer.get(container) ?? [];
+      images.push(img);
+      avatarsByContainer.set(container, images);
+    });
+
     // Equivalent to top/bottom viewport boundaries, with no preloading margin.
     let observing = true;
     const observer = new IntersectionObserver(
       (entries) => {
         if (!observing) return;
         entries.forEach((entry) => {
-          const img = entry.target as HTMLImageElement;
-          if (entry.isIntersecting) initIfNeeded(img);
-          else destroyIfExists(img);
+          avatarsByContainer.get(entry.target)?.forEach((img) => {
+            if (entry.isIntersecting) initIfNeeded(img);
+            else destroyIfExists(img);
+          });
         });
       },
       { root: null, rootMargin: '0px', threshold: 0 }
     );
     initialized = true;
-    avatars.forEach((img) => observer.observe(img));
+    avatarsByContainer.forEach((_, container) => observer.observe(container));
     window.addEventListener('pagehide', () => {
       observing = false;
       observer.disconnect();
@@ -87,7 +104,7 @@ export const testimonialAvatar = async () => {
     window.addEventListener('pageshow', (event) => {
       if (!event.persisted) return;
       observing = true;
-      avatars.forEach((img) => observer.observe(img));
+      avatarsByContainer.forEach((_, container) => observer.observe(container));
     });
 
     eventBus.emit('testimonialAvatar:initialized', { count: avatars.length });
