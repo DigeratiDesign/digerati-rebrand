@@ -1,21 +1,15 @@
 // src/client/styles/colour-cycle.less
 
-@property --h {
-  syntax: '<angle>';
-  inherits: true;
-  initial-value: 0deg;
-}
-
-.colour-cycle {
-  filter: hue-rotate(var(--h));
-}
-
-@keyframes hueClock {
+@keyframes digerati-hue-cycle {
   from {
-    --h: 0deg;
+    filter: hue-rotate(0deg);
   }
 
   to {
-    --h: 360deg;
+    filter: hue-rotate(360deg);
   }
+}
+
+.colour-cycle {
+  animation: digerati-hue-cycle 12s linear infinite;
 }
