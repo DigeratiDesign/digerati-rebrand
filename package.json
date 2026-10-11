@@ -25,13 +25,16 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development node ./bin/build.js",
     "build": "cross-env NODE_ENV=production node ./bin/build.js",
+    "build:js": "cross-env NODE_ENV=production node ./bin/build.js --javascript-only",
+    "verify:production": "node ./bin/production-integrity.js",
+    "test:build": "node --test ./bin/production-integrity.test.js",
     "lint": "eslint --ignore-path .gitignore --ext .ts,.tsx ./src && prettier --check ./src",
     "lint:fix": "eslint --ignore-path .gitignore --ext .ts,.tsx ./src --fix",
     "check": "tsc --noEmit",
     "format": "prettier --write ./src",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "release": "changeset publish",
+    "release": "pnpm run verify:production && changeset publish",
     "update": "pnpm update -i -L -r"
   },
   "devDependencies": {
