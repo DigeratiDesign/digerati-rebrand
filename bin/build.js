@@ -61,6 +61,27 @@ if (PRODUCTION) {
   await assertHalftoneBundle(halftone.code, halftone.map, source, license);
 }
 
+// Keep the shared classic-script embed small. This self-contained ES module is
+// requested beside index.js only by pages with the 404 animation attribute.
+const animationContext = await esbuild.context({
+  bundle: true,
+  entryPoints: ['src/client/modules/animation404.ts'],
+  outdir: BUILD_DIR,
+  format: 'esm',
+  ...buildModeOptions(PRODUCTION),
+  // Live reload belongs to the shared entry, never to the lazy module.
+  inject: [],
+});
+if (PRODUCTION) {
+  try {
+    await animationContext.rebuild();
+  } finally {
+    await animationContext.dispose();
+  }
+} else {
+  await animationContext.watch();
+}
+
 // Delete old webflow-html-embed.css in dev
 if (!PRODUCTION) {
   try {

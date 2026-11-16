@@ -9,7 +9,7 @@ import { autoGroup } from '$digerati/utils/logger';
 initEventDebugLogging();
 
 /** A single task function */
-type Task = () => void;
+type Task = () => unknown;
 
 /** A phase can optionally have tasks */
 interface Phase<K extends keyof AppEvents = keyof AppEvents> {
@@ -31,6 +31,7 @@ const PHASES = {
       Core.copyrightYear,
       Client.contact,
       Client.reasonGenerator,
+      Client.load404Animation,
       Client.initLegalColourCycle,
       () =>
         Core.convertMarkdownToTable({
@@ -74,7 +75,9 @@ Object.values(PHASES).forEach(({ readyFn, event, tasks = [] }) => {
       tasks.forEach((fn, i) => {
         try {
           if (typeof fn === 'function') {
-            fn();
+            void Promise.resolve(fn()).catch((err) => {
+              console.error(`[${event}] task failed:`, err);
+            });
           } else {
             console.warn(`[${event}] skipped non-function task at index ${i}:`, fn);
           }

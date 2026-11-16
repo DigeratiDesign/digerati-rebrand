@@ -4,6 +4,7 @@ export { initAutoHideAccordionItem } from './autoHideAccordionItem';
 export { faviconHueRotateStepped } from './faviconHueRotateStepped';
 export { initLegalColourCycle } from './legalColourCycle';
 export { lottieInit } from './lottie';
+export { load404Animation } from './load404Animation';
 export { reasonGenerator } from './reasonGenerator';
 export { contact } from './contact';
 export { testimonialAvatar } from './testimonialAvatar';

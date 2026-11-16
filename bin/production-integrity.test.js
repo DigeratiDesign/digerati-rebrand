@@ -97,6 +97,11 @@ test('JavaScript-only production command creates both artifacts without changing
     await mkdir(join(fixture, 'dist'));
     await vendorFixture(fixture);
     await writeFile(join(fixture, 'src/index.ts'), 'console.log(process.env.NODE_ENV);');
+    await mkdir(join(fixture, 'src/client/modules'), { recursive: true });
+    await writeFile(
+      join(fixture, 'src/client/modules/animation404.ts'),
+      'export function init404Animation() {}'
+    );
     await writeFile(join(fixture, 'dist/main.css'), '/* unrelated CSS */');
     const result = spawnSync(process.execPath, [join(root, 'bin/build.js'), '--javascript-only'], {
       cwd: fixture,
@@ -114,6 +119,7 @@ test('JavaScript-only production command creates both artifacts without changing
       await readFile(join(fixture, 'vendor/breathing-halftone.pkgd.js'), 'utf8'),
       await readFile(join(fixture, 'vendor/LICENSE.breathing-halftone'), 'utf8')
     );
+    assert.match(await readFile(join(fixture, 'dist/animation404.js'), 'utf8'), /init404Animation/);
     assert.equal(await readFile(join(fixture, 'dist/main.css'), 'utf8'), '/* unrelated CSS */');
     await assert.rejects(readFile(join(fixture, 'dist/webflow-html-embed.css')));
   } finally {
