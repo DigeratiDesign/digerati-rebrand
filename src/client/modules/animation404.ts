@@ -1,7 +1,9 @@
+import { pageTransitionCleared } from '$client/utils/pageTransition';
 import * as THREE from 'three';
 
 type Axis = 'x' | 'y';
 type Bounds = Record<Axis, number[]>;
+type Point = { x: number; y: number };
 
 const selector = '[dd-animation="404"]';
 const mountedHosts = new WeakSet<HTMLElement>();
@@ -16,6 +18,7 @@ const animationStyles = `
     animation: dd-404-animation-hue 12s linear infinite paused;
   }
   [dd-animation="404"].dd-404-animation-playing { animation-play-state: running; }
+  [dd-animation="404"].dd-404-animation-pending { visibility: hidden; }
   [dd-animation="404"] > canvas { display: block; width: 100%; height: 100%; }
   @keyframes dd-404-animation-hue {
     from { filter: hue-rotate(0deg); }
@@ -44,6 +47,8 @@ function mountPyramid(host: HTMLElement) {
   if (getComputedStyle(section).position === 'static') section.style.position = 'relative';
   section.classList.add('dd-404-animation-container');
   host.setAttribute('aria-hidden', 'true');
+  // Prepared while hidden; revealed once the page transition clears.
+  host.classList.add('dd-404-animation-pending');
   host.append(canvas);
   mountedHosts.add(host);
   const scene = new THREE.Scene();
@@ -66,23 +71,24 @@ function mountPyramid(host: HTMLElement) {
     [2, 0, 3],
     [0, 2, 1],
   ];
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
+  // Each pyramid clones this so its eye can occupy its own material group.
+  const baseGeometry = new THREE.BufferGeometry();
+  baseGeometry.setAttribute(
     'position',
     new THREE.Float32BufferAttribute(
       faces.flatMap((face) => face.flatMap((index) => corners[index].toArray())),
       3
     )
   );
-  geometry.setAttribute(
+  baseGeometry.setAttribute(
     'uv',
     new THREE.Float32BufferAttribute(
       faces.flatMap(() => [0, 0, 1, 0, 0.5, 1]),
       2
     )
   );
-  faces.forEach((_, index) => geometry.addGroup(index * 3, 3, index === 0 ? 0 : 1));
-  geometry.computeVertexNormals();
+  faces.forEach((_, index) => baseGeometry.addGroup(index * 3, 3, index === 0 ? 0 : 1));
+  baseGeometry.computeVertexNormals();
   scene.add(new THREE.AmbientLight(0xffffff, 1.05));
   const key = new THREE.DirectionalLight(0xffffff, 1.8);
   key.position.set(-4, 6, 7);
@@ -92,20 +98,23 @@ function mountPyramid(host: HTMLElement) {
   scene.add(rim);
 
   const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
-  let paused = motionPreference.matches;
+  let motionReduced = motionPreference.matches;
+  let revealed = false;
   const speed = 1;
+  // Entrance: each pyramid drops from just above the viewport onto a temporary
+  // floor at its resting height, ~150ms apart, then rebounds into normal motion.
+  const entranceStagger = 0.15;
+  const dropDuration = 0.42;
   const axes: Axis[] = ['x', 'y'];
   const limits = { x: 0, y: 0 };
-  const pointer = { active: false, x: 0, y: 0, radius: 0 };
-  const edgePairs = corners.flatMap((_, a) =>
-    corners.slice(a + 1).map((_, offset) => [a, a + offset + 1])
-  );
-  const fullSize = 0.88;
+  // Three pyramids at 70% of the original single pyramid's size.
+  const fullSize = 0.88 * 0.7;
   const plainMaterial = new THREE.MeshStandardMaterial({ color: spot, roughness: 0.58 });
   let previousTime = 0;
   let frame = 0;
 
-  function createPyramid() {
+  function createPyramid(start: Point, initialVelocity: Point, spinY: number) {
+    const geometry = baseGeometry.clone();
     const art = document.createElement('canvas');
     art.width = art.height = 512;
     const context = art.getContext('2d');
@@ -164,17 +173,22 @@ function mountPyramid(host: HTMLElement) {
     tumble.add(pyramid);
     squash.add(tumble);
     scene.add(squash);
-    tumble.rotation.set(0.21, -0.29, -0.18);
+    tumble.rotation.set(0.21, start.x, start.y);
     pyramid.scale.setScalar(fullSize);
-    const velocity = { x: 2.65, y: -1.68 };
-    const spin = new THREE.Vector3(0.53, 0.78, 0.29);
+    const velocity = { ...initialVelocity };
+    const spin = new THREE.Vector3(0.53, spinY, start.x);
     const springs = { x: { depth: 0, rate: 0 }, y: { depth: 0, rate: 0 } };
+    // Corner offsets from the pyramid centre after tumble and squash; shared with collisions.
     const projectedCorners = corners.map(() => new THREE.Vector3());
-    const cursorGlance = new THREE.Vector3();
-    let cursorGlanceTime = 0;
-    let touchingPointer = false;
-    const travelSpeed = Math.hypot(velocity.x, velocity.y);
     let angularKick = 0;
+    // 'hidden' until the page transition clears; 'active' runs the normal simulation.
+    let phase: 'hidden' | 'entering' | 'active' = 'hidden';
+    let entranceTime = 0;
+    let entranceDelay = 0;
+    squash.visible = false;
+    // Just above the viewport, clear of the largest projected extent.
+    const dropStartY = () => limits.y + fullSize * 1.4;
+    const restingPosition = () => ({ x: start.x * limits.x, y: start.y * limits.y });
 
     function measureBounds() {
       const bounds: Bounds = { x: [Infinity, -Infinity], y: [Infinity, -Infinity] };
@@ -205,83 +219,6 @@ function mountPyramid(host: HTMLElement) {
           -limits[axis] - bounds[axis][0],
           limits[axis] - bounds[axis][1]
         );
-      }
-    }
-
-    function bumpFromPointer() {
-      if (!pointer.active) {
-        touchingPointer = false;
-        return;
-      }
-
-      const x = pointer.x - squash.position.x;
-      const y = pointer.y - squash.position.y;
-      let gap = Infinity;
-      let normalX = 0;
-      let normalY = 0;
-      for (const [a, b] of edgePairs) {
-        const start = projectedCorners[a];
-        const end = projectedCorners[b];
-        const dx = end.x - start.x;
-        const dy = end.y - start.y;
-        const lengthSquared = dx * dx + dy * dy;
-        if (lengthSquared < 1e-9) continue;
-        const along = THREE.MathUtils.clamp(
-          ((x - start.x) * dx + (y - start.y) * dy) / lengthSquared,
-          0,
-          1
-        );
-        const nx = start.x + along * dx - x;
-        const ny = start.y + along * dy - y;
-        const distance = Math.hypot(nx, ny);
-        if (distance >= gap) continue;
-        gap = distance;
-        normalX = nx;
-        normalY = ny;
-      }
-      const inside = faces.some(([a, b, c]) => {
-        const points = [projectedCorners[a], projectedCorners[b], projectedCorners[c]];
-        const [first, second, third] = points;
-        const area =
-          (second.x - first.x) * (third.y - first.y) - (second.y - first.y) * (third.x - first.x);
-        if (Math.abs(area) < 1e-9) return false;
-        const sides = points.map((start, i) => {
-          const end = points[(i + 1) % 3];
-          return (end.x - start.x) * (y - start.y) - (end.y - start.y) * (x - start.x);
-        });
-        return sides.every((value) => value >= 0) || sides.every((value) => value <= 0);
-      });
-
-      const inContact = inside || gap <= pointer.radius;
-      const entering = inContact && !touchingPointer;
-      if (!inContact && gap > pointer.radius * 1.6) touchingPointer = false;
-      if (!entering) return;
-      touchingPointer = true;
-
-      if (inside || gap < 1e-6) {
-        normalX = -x;
-        normalY = -y;
-        if (Math.hypot(normalX, normalY) < 1e-6) {
-          normalX = -velocity.x;
-          normalY = -velocity.y;
-        }
-      }
-      const length = Math.hypot(normalX, normalY);
-      normalX /= length;
-      normalY /= length;
-
-      const approach = velocity.x * normalX + velocity.y * normalY;
-      const impulse = Math.max(0.9, -1.45 * approach);
-      const turn = velocity.x * normalY - velocity.y * normalX;
-      velocity.x += impulse * normalX;
-      velocity.y += impulse * normalY;
-      const newSpeed = Math.hypot(velocity.x, velocity.y);
-      velocity.x *= travelSpeed / newSpeed;
-      velocity.y *= travelSpeed / newSpeed;
-      angularKick += THREE.MathUtils.clamp(turn * 0.12, -0.35, 0.35);
-      if (faceVisibility(logoFace, tumble.quaternion) > 0.3) {
-        cursorGlance.set(-normalX, -normalY, 0);
-        cursorGlanceTime = 0.26;
       }
     }
 
@@ -318,8 +255,60 @@ function mountPyramid(host: HTMLElement) {
         squash.position[axis] = outward * limits[axis] - deformedBounds[axis][edge];
       }
       fit(deformedBounds);
-      bumpFromPointer();
       return deformedBounds;
+    }
+
+    function beginEntrance(delay: number) {
+      if (phase !== 'hidden') return;
+      phase = 'entering';
+      entranceTime = 0;
+      entranceDelay = delay;
+      squash.position.set(restingPosition().x, dropStartY(), 0);
+    }
+
+    function dropProgress() {
+      return THREE.MathUtils.clamp((entranceTime - entranceDelay) / dropDuration, 0, 1);
+    }
+
+    /** Scripted fall; returns true while the pyramid is still dropping. */
+    function advanceEntrance(dt: number) {
+      if (phase !== 'entering') return false;
+      entranceTime += dt;
+      if (entranceTime < entranceDelay) return true;
+      squash.visible = true;
+      // Tumble harder while falling; it settles to the normal spin after landing.
+      tumble.rotation.x += spin.x * 2.4 * dt;
+      tumble.rotation.y += spin.y * 2.4 * dt;
+      tumble.rotation.z += spin.z * 2.4 * dt;
+      const progress = dropProgress();
+      const { x, y: floorY } = restingPosition();
+      // Accelerating fall, as under gravity.
+      squash.position.set(x, dropStartY() + (floorY - dropStartY()) * progress * progress, 0);
+      measureBounds();
+      if (progress < 1) return true;
+      land();
+      return false;
+    }
+
+    function land() {
+      phase = 'active';
+      // Squash on the implied floor (widening sideways), widen the eye, rebound upwards.
+      springs.y.depth = 0.3;
+      springs.y.rate = 0.6;
+      reactToImpact(2.3);
+      velocity.x = initialVelocity.x;
+      velocity.y = Math.abs(initialVelocity.y);
+      angularKick += Math.sign(initialVelocity.x) * 0.35;
+    }
+
+    /** Places the pyramid at rest without the drop (reduced motion). */
+    function settle() {
+      if (phase === 'active') return;
+      phase = 'active';
+      squash.visible = true;
+      const { x, y } = restingPosition();
+      squash.position.set(x, y, 0);
+      fit(measureBounds());
     }
 
     const facing = new THREE.Vector3();
@@ -396,9 +385,13 @@ function mountPyramid(host: HTMLElement) {
 
       glanceDirection.set(0, 0, 0);
       glanceDirection[nextAxis] = Math.sign(velocity[nextAxis]);
-      glanceDirection.applyQuaternion(inverseTumble.copy(tumble.quaternion).invert());
       const approach = 1 - arrival / glanceLead;
-      const strength = approach * approach * (3 - 2 * approach);
+      lookAlong(approach * approach * (3 - 2 * approach));
+    }
+
+    /** Moves the pupil towards `glanceDirection` (world space) on the eye's face. */
+    function lookAlong(strength: number) {
+      glanceDirection.applyQuaternion(inverseTumble.copy(tumble.quaternion).invert());
       const { right, up } = faceBases[logoFace];
       drawLogo(
         1,
@@ -429,34 +422,23 @@ function mountPyramid(host: HTMLElement) {
       }
     }
 
-    function advanceEye(dt: number, bounds: Bounds) {
+    function advanceEye(dt: number, bounds: Bounds | null) {
+      if (phase === 'hidden' || !squash.visible) return;
       handOffEye();
-      cursorGlanceTime = Math.max(0, cursorGlanceTime - dt);
+      if (phase === 'entering') {
+        // Watch the floor coming up.
+        glanceDirection.set(0, -1, 0);
+        lookAlong(Math.min(1, dropProgress() * 1.6));
+        return;
+      }
       if (flinchRemaining > 0) {
         drawLogo(1 + flinchOpenness());
         flinchRemaining = Math.max(0, flinchRemaining - dt);
         if (flinchRemaining === 0) drawLogo(1);
         return;
       }
-      if (
-        cursorGlanceTime > 0 &&
-        blinkElapsed === null &&
-        faceVisibility(logoFace, tumble.quaternion) > 0.3
-      ) {
-        glanceDirection
-          .copy(cursorGlance)
-          .applyQuaternion(inverseTumble.copy(tumble.quaternion).invert());
-        const strength = Math.min(1, cursorGlanceTime / 0.14);
-        const { right, up } = faceBases[logoFace];
-        drawLogo(
-          1,
-          5 * strength * glanceDirection.dot(right),
-          -0.85 * strength * glanceDirection.dot(up)
-        );
-        return;
-      }
       advanceBlink(dt);
-      if (blinkElapsed === null) glanceAtEdge(bounds);
+      if (blinkElapsed === null && bounds) glanceAtEdge(bounds);
     }
 
     function advanceBlink(dt: number) {
@@ -480,39 +462,125 @@ function mountPyramid(host: HTMLElement) {
 
     return {
       position: squash.position,
-      clampToViewport() {
-        fit(measureBounds());
+      start,
+      velocity,
+      projectedCorners,
+      reactToCollision(impact: number, spinKick: number) {
+        reactToImpact(impact);
+        angularKick += spinKick;
       },
+      isActive: () => phase === 'active',
+      clampToViewport() {
+        if (phase === 'active') fit(measureBounds());
+      },
+      beginEntrance,
+      advanceEntrance,
+      settle,
       advance,
       advanceEye,
     };
   }
 
-  const body = createPyramid();
+  const bodies = [
+    createPyramid({ x: -0.45, y: 0.24 }, { x: 2.6, y: -1.5 }, 0.78),
+    createPyramid({ x: 0.46, y: -0.26 }, { x: -2.1, y: 1.8 }, -0.72),
+    createPyramid({ x: 0.26, y: 0.58 }, { x: -1.5, y: -2.3 }, -0.72),
+  ];
+  type Body = (typeof bodies)[number];
 
-  function trackPointer(event: PointerEvent) {
-    pointer.active = false;
-    if (
-      paused ||
-      event.pointerType !== 'mouse' ||
-      (event.target instanceof Element &&
-        event.target.closest('a, button, input, select, textarea, [role="button"]'))
-    )
-      return;
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    pointer.x = (((event.clientX - rect.left) / rect.width) * 2 - 1) * limits.x;
-    pointer.y = (1 - ((event.clientY - rect.top) / rect.height) * 2) * limits.y;
-    pointer.radius = (12 * 2 * limits.x) / rect.width;
-    pointer.active = true;
+  function cross(a: Point, b: Point, c: Point) {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
   }
 
-  function clearPointer() {
-    pointer.active = false;
+  // Convex hull of the projected corners: the pyramid's visible outline.
+  function silhouette(body: Body) {
+    const points = [...body.projectedCorners].sort((a, b) => a.x - b.x || a.y - b.y);
+    function half(ordered: THREE.Vector3[]) {
+      const hull: THREE.Vector3[] = [];
+      for (const point of ordered) {
+        while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], point) <= 0)
+          hull.pop();
+        hull.push(point);
+      }
+      hull.pop();
+      return hull;
+    }
+    return [...half(points), ...half(points.reverse())];
+  }
+
+  function collide(a: Body, b: Body) {
+    const hullA = silhouette(a);
+    const hullB = silhouette(b);
+    const dx = b.position.x - a.position.x;
+    const dy = b.position.y - a.position.y;
+    let separation = Infinity;
+    let normalX = 0;
+    let normalY = 0;
+
+    // The separating axes of the two projected silhouettes locate visible contact.
+    for (const hull of [hullA, hullB]) {
+      for (let i = 0; i < hull.length; i++) {
+        const first = hull[i];
+        const second = hull[(i + 1) % hull.length];
+        const length = Math.hypot(second.x - first.x, second.y - first.y);
+        if (length < 1e-9) continue;
+        const nx = (first.y - second.y) / length;
+        const ny = (second.x - first.x) / length;
+        const offset = dx * nx + dy * ny;
+        const rangeA = hullA.map((point) => point.x * nx + point.y * ny);
+        const rangeB = hullB.map((point) => point.x * nx + point.y * ny + offset);
+        const forward = Math.max(...rangeA) - Math.min(...rangeB);
+        const backward = Math.max(...rangeB) - Math.min(...rangeA);
+        const overlap = Math.min(forward, backward);
+        if (overlap <= 0) return;
+        if (overlap >= separation) continue;
+        separation = overlap;
+        const direction = forward <= backward ? 1 : -1;
+        normalX = nx * direction;
+        normalY = ny * direction;
+      }
+    }
+    if (!Number.isFinite(separation)) return;
+
+    const correction = (separation + 0.0001) / 2;
+    a.position.x -= normalX * correction;
+    a.position.y -= normalY * correction;
+    b.position.x += normalX * correction;
+    b.position.y += normalY * correction;
+    const relativeX = b.velocity.x - a.velocity.x;
+    const relativeY = b.velocity.y - a.velocity.y;
+    const approach = relativeX * normalX + relativeY * normalY;
+    if (approach >= 0) return;
+
+    const impulse = -approach * 0.96;
+    a.velocity.x -= impulse * normalX;
+    a.velocity.y -= impulse * normalY;
+    b.velocity.x += impulse * normalX;
+    b.velocity.y += impulse * normalY;
+    const kick = THREE.MathUtils.clamp(
+      (relativeX * normalY - relativeY * normalX) * 0.13,
+      -0.5,
+      0.5
+    );
+    a.reactToCollision(-approach, kick);
+    b.reactToCollision(-approach, -kick);
+  }
+
+  function stepBodies(dt: number) {
+    // Dropping pyramids follow their scripted fall; only landed ones collide.
+    const bounds = bodies.map((body) =>
+      !body.advanceEntrance(dt) && body.isActive() ? body.advance(dt) : null
+    );
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        if (bodies[i].isActive() && bodies[j].isActive()) collide(bodies[i], bodies[j]);
+      }
+    }
+    for (const body of bodies) body.clampToViewport();
+    return bounds;
   }
 
   function resize() {
-    clearPointer();
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     const shortSide = Math.max(1, Math.min(width, height));
@@ -520,14 +588,15 @@ function mountPyramid(host: HTMLElement) {
     const previousY = limits.y;
     limits.x = (4.5 * width) / shortSide;
     limits.y = (4.5 * height) / shortSide;
-    const { position } = body;
-    if (previousX && previousY) {
-      position.x *= limits.x / previousX;
-      position.y *= limits.y / previousY;
-    } else {
-      position.set(-limits.x * 0.33, limits.y * 0.23, 0);
+    for (const { position, start, clampToViewport } of bodies) {
+      if (previousX && previousY) {
+        position.x *= limits.x / previousX;
+        position.y *= limits.y / previousY;
+      } else {
+        position.set(start.x * limits.x, start.y * limits.y, 0);
+      }
+      clampToViewport();
     }
-    body.clampToViewport();
     camera.left = -limits.x;
     camera.right = limits.x;
     camera.top = limits.y;
@@ -542,31 +611,45 @@ function mountPyramid(host: HTMLElement) {
     const dt = Math.min((time - (previousTime || time)) / 1000, 0.05);
     previousTime = time;
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
-    let bounds = body.advance(dt / steps);
-    for (let step = 1; step < steps; step++) bounds = body.advance(dt / steps);
-    body.advanceEye(dt, bounds);
+    let bounds = stepBodies(dt / steps);
+    for (let step = 1; step < steps; step++) bounds = stepBodies(dt / steps);
+    bodies.forEach((body, i) => body.advanceEye(dt, bounds[i]));
     renderer.render(scene, camera);
     frame = requestAnimationFrame(render);
   }
 
-  function setPaused(value: boolean) {
-    paused = value;
-    clearPointer();
-    host.classList.toggle('dd-404-animation-playing', !paused);
+  // The simulation and hue cycle run only once revealed, and never with reduced motion.
+  function syncPlayback() {
+    const running = revealed && !motionReduced;
+    host.classList.toggle('dd-404-animation-playing', running);
     cancelAnimationFrame(frame);
     previousTime = 0;
-    if (!paused) frame = requestAnimationFrame(render);
+    if (running) frame = requestAnimationFrame(render);
+    else renderer.render(scene, camera);
   }
 
-  section.addEventListener('pointermove', trackPointer);
-  section.addEventListener('pointerleave', clearPointer);
-  section.addEventListener('pointercancel', clearPointer);
-  window.addEventListener('blur', clearPointer);
-  window.addEventListener('scroll', clearPointer, { passive: true });
+  // Runs once per mount, so once per page visit.
+  function reveal() {
+    if (revealed || !host.isConnected) return;
+    revealed = true;
+    host.classList.remove('dd-404-animation-pending');
+    if (motionReduced) bodies.forEach((body) => body.settle());
+    else bodies.forEach((body, i) => body.beginEntrance(i * entranceStagger));
+    syncPlayback();
+  }
+
   new ResizeObserver(resize).observe(canvas);
-  motionPreference.addEventListener('change', (event) => setPaused(event.matches));
+  motionPreference.addEventListener('change', (event) => {
+    motionReduced = event.matches;
+    // Switching to reduced motion mid-drop places the remaining pyramids at rest.
+    if (motionReduced && revealed) bodies.forEach((body) => body.settle());
+    syncPlayback();
+  });
   resize();
-  setPaused(paused);
+  // Upload textures and compile shaders now, so the entrance starts without a stall.
+  renderer.compile(scene, camera);
+  syncPlayback();
+  void pageTransitionCleared(host.ownerDocument).then(reveal);
 }
 
 // The 404 is static. This entry point also accepts a root for pages that add the host later.

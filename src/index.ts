@@ -1,11 +1,13 @@
 // src/index.ts
 import * as Client from '$client/modules';
+import { initAnimationDiagnostics, isAnimationDisabled } from '$client/utils/animationDiagnostics';
 import { eventBus, initEventDebugLogging } from '$digerati/events';
 import type { AppEvents } from '$digerati/events/types';
 import * as Core from '$digerati/modules';
 import { domReady, fontReady, ix2Ready, webflowReady } from '$digerati/register';
 import { autoGroup } from '$digerati/utils/logger';
 
+initAnimationDiagnostics();
 initEventDebugLogging();
 
 /** A single task function */
@@ -31,8 +33,8 @@ const PHASES = {
       Core.copyrightYear,
       Client.contact,
       Client.reasonGenerator,
-      Client.load404Animation,
-      Client.initLegalColourCycle,
+      ...(!isAnimationDisabled('all-custom') ? [Client.load404Animation] : []),
+      ...(!isAnimationDisabled('colour-cycle') ? [Client.initLegalColourCycle] : []),
       () =>
         Core.convertMarkdownToTable({
           selector: 'markdown',
@@ -47,13 +49,17 @@ const PHASES = {
       Client.initAutoHideAccordionItem,
       Core.skipToMainContent,
       Client.testimonialAvatar,
-      () =>
-        Core.autoHideNavbarOnScroll({
-          headerSelector: 'header',
-          hiddenClass: 'navbar-hidden',
-          injectCSS: true,
-        }),
-      () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
+      ...(!isAnimationDisabled('all-custom')
+        ? [
+            () =>
+              Core.autoHideNavbarOnScroll({
+                headerSelector: 'header',
+                hiddenClass: 'navbar-hidden',
+                injectCSS: true,
+              }),
+            () => Core.smoothScroll({ duration: 800, easing: 'easeOutCubic' }),
+          ]
+        : []),
     ],
   },
   fontReady: {

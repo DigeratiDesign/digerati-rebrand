@@ -8,7 +8,8 @@ remain in `previews/digerati-404-pyramid.html`; the Desktop original is untouche
 The shared DOM-ready phase calls `load404Animation`. It checks for the attribute
 before dynamically importing `animation404.js` beside the shared `index.js` URL.
 This preserves the existing classic `<script defer src="…/dist/index.js">` embed,
-including on nested page URLs. Ordinary pages do not download Three.js.
+including on nested page URLs. Ordinary pages do not download Three.js. The
+existing `dd-debug-disable=all-custom` staging switch also skips this animation.
 
 ## Publish
 
@@ -29,10 +30,35 @@ including on nested page URLs. Ordinary pages do not download Three.js.
 
 The section is the animation boundary. The module positions a static section
 relatively, isolates its stacking context, and places a pointer-transparent canvas
-behind the content. The host is hidden from assistive technology. Pointer bounce
-ignores links and other interactive controls. Reduced motion starts with a static
-render and pauses both the physics and hue animation; preference changes are live.
-The eye uses exactly one material group, transferring only between hidden faces.
+behind the content. The host is hidden from assistive technology and the animation
+does not respond to the pointer. Reduced motion starts with a static render and
+pauses both the physics and hue animation; preference changes are live.
+
+## Entrance
+
+The canvas mounts and compiles its shaders behind the page transition, hidden
+(`dd-404-animation-pending`) with the simulation stopped. The transition is the
+dot preloader, `[dd-fx="preloader"]`, driven by Webflow Interactions:
+"Preloader [Loading]" on page start, then "Preloader [Loaded]" on page finish,
+which fades it out over 500ms and sets `display: none`. Webflow emits no event,
+so `src/client/utils/pageTransition.ts` waits for window `load` and that final
+`display: none`, checking the current state first. The module therefore reveals
+at once if it loads after the transition has already cleared. If the preloader is
+missing, the reveal follows `load`; if it is never hidden, it follows 3s after `load`.
+
+On reveal, the pyramids drop from just above the viewport ~150ms apart. Each one
+tumbles, lands at its own resting height on an implied floor, squashes and
+widens its eye, then rebounds into normal motion. The entrance takes ~1s. With
+reduced motion, the three appear at rest instead. The entrance runs once per
+mount; repeated `init404Animation` calls do not remount or replay it.
+
+## Motion
+
+Three pyramids, each 70% of the original single pyramid's size, share one canvas.
+They bounce off the section edges and off each other, using the convex outline of
+each pyramid's projected corners. Each pyramid has one eye on one material group,
+moved to another face only while both faces are hidden. The eye blinks, glances
+towards the next edge, and widens on wall or pyramid impacts.
 
 ## Verify locally
 
@@ -47,8 +73,10 @@ pnpm exec playwright test -c playwright.404.config.ts --project=chromium
 
 The dedicated browser config tests production artifacts without running the
 watcher. Tests cover one canvas after repeated initialization, section sizing,
-mouse and keyboard link activation, reduced-motion preferences, and ordinary-page
-network requests. Install the repo's browser version with
+mouse and keyboard link activation, the absence of pointer listeners,
+reduced-motion preferences, and ordinary-page network requests. They also cover
+the entrance lifecycle against a simulated Webflow preloader: a slow load, the
+module arriving after the transition, and reduced motion. Install the repo's browser version with
 `pnpm exec playwright install chromium` if needed.
 
 To view the preserved exported preview, serve the repo root over HTTP after a
